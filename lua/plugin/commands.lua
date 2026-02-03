@@ -41,7 +41,7 @@ function M.toggle_terminal()
   end
 
   -- No buffer: create terminal in right split
-  vim.cmd('vsplit | terminal')
+  vim.cmd('vsplit | terminal opencode --port 60000')
   local new_buf = vim.api.nvim_get_current_buf()
   vim.bo[new_buf].buflisted = false
   state.set_terminal_buffer(new_buf)

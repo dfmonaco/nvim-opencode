@@ -148,4 +148,40 @@ T['OC command']['terminal buffer is not listed'] = function()
   child.stop()
 end
 
+T['OC command']['launches opencode process on terminal creation'] = function()
+  local child = MiniTest.new_child_neovim()
+  child.restart({ '-u', 'scripts/minimal_init.lua' })
+  
+  child.lua([[require('plugin').setup()]])
+  
+  -- Create terminal
+  child.cmd('OC')
+  
+  -- Get terminal buffer name (should contain the command)
+  local term_buf_name = child.lua_get([[
+    (function()
+      local wins = vim.api.nvim_list_wins()
+      for _, win in ipairs(wins) do
+        local buf = vim.api.nvim_win_get_buf(win)
+        local buftype = vim.api.nvim_get_option_value('buftype', { buf = buf })
+        if buftype == 'terminal' then
+          return vim.api.nvim_buf_get_name(buf)
+        end
+      end
+      return ''
+    end)()
+  ]])
+  
+  -- Terminal buffer name should contain 'opencode'
+  -- Buffer names for terminals typically look like: term://path//pid:command
+  local contains_opencode = term_buf_name:match('opencode') ~= nil
+  MiniTest.expect.equality(contains_opencode, true)
+  
+  -- Verify the exact command includes the port flag
+  local contains_port = term_buf_name:match('60000') ~= nil
+  MiniTest.expect.equality(contains_port, true)
+  
+  child.stop()
+end
+
 return T
