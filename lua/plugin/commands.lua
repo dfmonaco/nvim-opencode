@@ -9,47 +9,43 @@ local state = require('plugin.state')
 function M.open_terminal()
   -- Save current window ID
   local current_win = vim.api.nvim_get_current_win()
-  
-  -- Check if terminal window is currently visible
-  if state.is_terminal_window_visible() then
-    -- Hide the terminal window (only if valid)
-    local win = state.get_terminal_window()
-    if win and vim.api.nvim_win_is_valid(win) then
-      vim.api.nvim_win_close(win, false)
+  local buf = state.get_terminal_buffer()
+
+  -- Helper: Find a window displaying the terminal buffer
+  local function find_terminal_win()
+    if buf and vim.api.nvim_buf_is_valid(buf) then
+      for _, win in ipairs(vim.api.nvim_list_wins()) do
+        if vim.api.nvim_win_get_buf(win) == buf then
+          return win
+        end
+      end
     end
-    state.clear_terminal_window()
+    return nil
+  end
+
+  -- Toggle logic
+  local term_win = find_terminal_win()
+  if term_win then
+    -- Hide by closing terminal window
+    vim.api.nvim_win_close(term_win, false)
     return
   end
-  
-  -- Check if terminal buffer exists and is valid
-  if state.is_terminal_buffer_valid() then
-    -- Show the existing terminal buffer in a new window
+
+  if buf and vim.api.nvim_buf_is_valid(buf) then
+    -- Terminal buffer exists but isn't visible: show in right split
     vim.cmd('vsplit')
     local new_win = vim.api.nvim_get_current_win()
-    local buf = state.get_terminal_buffer()
-    if buf and vim.api.nvim_buf_is_valid(buf) then
-      vim.api.nvim_win_set_buf(new_win, buf)
-      state.set_terminal_window(new_win)
-    end
-    
-    -- Return focus to original window
+    vim.api.nvim_win_set_buf(new_win, buf)
     vim.api.nvim_set_current_win(current_win)
     return
   end
-  
-  -- Create new terminal buffer and window
+
+  -- No buffer: create terminal in right split
   vim.cmd('vsplit | terminal')
   local new_win = vim.api.nvim_get_current_win()
   local new_buf = vim.api.nvim_get_current_buf()
-  
-  -- Make terminal buffer unlisted so it doesn't appear in buffer list
   vim.bo[new_buf].buflisted = false
-  
-  -- Store terminal state
   state.set_terminal_buffer(new_buf)
-  state.set_terminal_window(new_win)
-  
-  -- Return focus to original window
   vim.api.nvim_set_current_win(current_win)
 end
 
