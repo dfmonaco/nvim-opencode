@@ -99,6 +99,21 @@ end
 return T
 ```
 
+### Running Tests
+
+Use the provided Makefile to run tests:
+
+- To run all tests:
+  ```bash
+  make test
+  ```
+- To run a specific test file:
+  ```bash
+  make test_file FILE=tests/test_foo.lua
+  ```
+
+This ensures tests use the correct headless environment and dependencies.
+
 ---
 
 ## 4. State Management
