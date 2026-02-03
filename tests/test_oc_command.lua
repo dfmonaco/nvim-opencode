@@ -15,7 +15,7 @@ T['OC command']['is registered after setup'] = function()
   child.stop()
 end
 
-T['OC command']['opens terminal in vertical split'] = function()
+T['OC command']['creates terminal on first call'] = function()
   local child = MiniTest.new_child_neovim()
   child.restart({ '-u', 'scripts/minimal_init.lua' })
   
@@ -36,7 +36,7 @@ T['OC command']['opens terminal in vertical split'] = function()
   local current_win_id = child.lua_get([[vim.api.nvim_get_current_win()]])
   MiniTest.expect.equality(current_win_id, initial_win_id)
   
-  -- Check that the right window has a terminal buffer
+  -- Check that a terminal buffer exists
   local is_terminal = child.lua_get([[
     (function()
       local wins = vim.api.nvim_list_wins()
@@ -51,6 +51,99 @@ T['OC command']['opens terminal in vertical split'] = function()
     end)()
   ]])
   MiniTest.expect.equality(is_terminal, true)
+  
+  child.stop()
+end
+
+T['OC command']['hides terminal on second call'] = function()
+  local child = MiniTest.new_child_neovim()
+  child.restart({ '-u', 'scripts/minimal_init.lua' })
+  
+  child.lua([[require('plugin').setup()]])
+  
+  local initial_win_count = child.lua_get([[#vim.api.nvim_list_wins()]])
+  
+  -- First call: create terminal
+  child.cmd('OC')
+  local after_create_count = child.lua_get([[#vim.api.nvim_list_wins()]])
+  MiniTest.expect.equality(after_create_count, initial_win_count + 1)
+  
+  -- Second call: hide terminal
+  child.cmd('OC')
+  local after_hide_count = child.lua_get([[#vim.api.nvim_list_wins()]])
+  MiniTest.expect.equality(after_hide_count, initial_win_count)
+  
+  child.stop()
+end
+
+T['OC command']['shows terminal on third call'] = function()
+  local child = MiniTest.new_child_neovim()
+  child.restart({ '-u', 'scripts/minimal_init.lua' })
+  
+  child.lua([[require('plugin').setup()]])
+  
+  local initial_win_count = child.lua_get([[#vim.api.nvim_list_wins()]])
+  local initial_win_id = child.lua_get([[vim.api.nvim_get_current_win()]])
+  
+  -- First call: create terminal
+  child.cmd('OC')
+  
+  -- Second call: hide terminal
+  child.cmd('OC')
+  
+  -- Third call: show terminal again
+  child.cmd('OC')
+  local after_show_count = child.lua_get([[#vim.api.nvim_list_wins()]])
+  MiniTest.expect.equality(after_show_count, initial_win_count + 1)
+  
+  -- Check that focus remained on original window
+  local current_win_id = child.lua_get([[vim.api.nvim_get_current_win()]])
+  MiniTest.expect.equality(current_win_id, initial_win_id)
+  
+  -- Check that terminal still exists
+  local is_terminal = child.lua_get([[
+    (function()
+      local wins = vim.api.nvim_list_wins()
+      for _, win in ipairs(wins) do
+        local buf = vim.api.nvim_win_get_buf(win)
+        local buftype = vim.api.nvim_get_option_value('buftype', { buf = buf })
+        if buftype == 'terminal' then
+          return true
+        end
+      end
+      return false
+    end)()
+  ]])
+  MiniTest.expect.equality(is_terminal, true)
+  
+  child.stop()
+end
+
+T['OC command']['terminal buffer is not listed'] = function()
+  local child = MiniTest.new_child_neovim()
+  child.restart({ '-u', 'scripts/minimal_init.lua' })
+  
+  child.lua([[require('plugin').setup()]])
+  
+  -- Create terminal
+  child.cmd('OC')
+  
+  -- Check that terminal buffer is not listed
+  local is_unlisted = child.lua_get([[
+    (function()
+      local wins = vim.api.nvim_list_wins()
+      for _, win in ipairs(wins) do
+        local buf = vim.api.nvim_win_get_buf(win)
+        local buftype = vim.api.nvim_get_option_value('buftype', { buf = buf })
+        if buftype == 'terminal' then
+          local buflisted = vim.api.nvim_get_option_value('buflisted', { buf = buf })
+          return not buflisted
+        end
+      end
+      return false
+    end)()
+  ]])
+  MiniTest.expect.equality(is_unlisted, true)
   
   child.stop()
 end
