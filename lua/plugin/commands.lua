@@ -42,7 +42,6 @@ function M.open_terminal()
 
   -- No buffer: create terminal in right split
   vim.cmd('vsplit | terminal')
-  local new_win = vim.api.nvim_get_current_win()
   local new_buf = vim.api.nvim_get_current_buf()
   vim.bo[new_buf].buflisted = false
   state.set_terminal_buffer(new_buf)
