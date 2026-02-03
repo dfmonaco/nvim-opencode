@@ -10,7 +10,7 @@ function M.setup(opts)
   
   -- Register OC command
   vim.api.nvim_create_user_command('OC', function()
-    require('plugin.commands').open_terminal()
+    require('plugin.commands').toggle_terminal()
   end, { desc = 'Open terminal in vertical split on the right' })
   
 end

@@ -6,7 +6,7 @@ local state = require('plugin.state')
 ---Creates if it doesn't exist, hides if visible, shows if hidden
 ---Focus always returns to the original window
 ---@return nil
-function M.open_terminal()
+function M.toggle_terminal()
   -- Save current window ID
   local current_win = vim.api.nvim_get_current_win()
   local buf = state.get_terminal_buffer()
@@ -23,16 +23,16 @@ function M.open_terminal()
     return nil
   end
 
-  -- Toggle logic
   local term_win = find_terminal_win()
+
+  -- Hide by closing terminal window
   if term_win then
-    -- Hide by closing terminal window
     vim.api.nvim_win_close(term_win, false)
     return
   end
 
+  -- Terminal buffer exists but isn't visible: show in right split
   if buf and vim.api.nvim_buf_is_valid(buf) then
-    -- Terminal buffer exists but isn't visible: show in right split
     vim.cmd('vsplit')
     local new_win = vim.api.nvim_get_current_win()
     vim.api.nvim_win_set_buf(new_win, buf)
