@@ -1,8 +1,9 @@
 local M = {}
 
--- Private state for the terminal
+-- Private state for plugin buffers
 local state = {
-  terminal_bufnr = nil
+  terminal_bufnr = nil,
+  ocprompt_bufnr = nil,
 }
 
 ---Sets the terminal buffer number
@@ -17,10 +18,21 @@ function M.get_terminal_buffer()
   return state.terminal_bufnr
 end
 
----Checks if terminal buffer is valid
----@return boolean
-function M.is_terminal_buffer_valid()
-  return state.terminal_bufnr ~= nil and vim.api.nvim_buf_is_valid(state.terminal_bufnr)
+---Sets the OCPrompt buffer number
+---@param bufnr number
+function M.set_ocprompt_buffer(bufnr)
+  state.ocprompt_bufnr = bufnr
+end
+
+---Gets the OCPrompt buffer number
+---@return number|nil
+function M.get_ocprompt_buffer()
+  return state.ocprompt_bufnr
+end
+
+---Clears OCPrompt buffer reference
+function M.clear_ocprompt_buffer()
+  state.ocprompt_bufnr = nil
 end
 
 return M
