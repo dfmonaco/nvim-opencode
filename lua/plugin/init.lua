@@ -11,13 +11,11 @@ function M.setup(opts)
   -- Register OC command
    vim.api.nvim_create_user_command('OC', function()
     require('plugin.commands').toggle_terminal()
-  end, { desc = 'Open terminal in vertical split on the right' })
+  end, { desc = 'Toggle terminal (vertical right split)' })
 
-   -- Directly map <leader>O to toggle_terminal (normal mode)
-   vim.keymap.set('n', '<leader>O', function()
-     require('plugin.commands').toggle_terminal()
-   end, {
-     desc = 'Toggle Opencode terminal',
+   -- Map <leader>O to execute :OC command (normal mode)
+   vim.keymap.set('n', '<leader>O', '<cmd>OC<cr>', {
+     desc = 'Toggle terminal (vertical right split)',
      noremap = true,
      silent = true,
    })
