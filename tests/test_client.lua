@@ -1,3 +1,4 @@
+local MiniTest = require('mini.test')
 local T = MiniTest.new_set()
 
 ---Helper to spawn an OpenCode server for testing
