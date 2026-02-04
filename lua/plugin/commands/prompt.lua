@@ -3,7 +3,7 @@ local state = require('plugin.state')
 ---Creates or focuses the OCPrompt buffer in the current window.
 ---If it already exists and is valid, focuses it; else, creates it anew.
 ---@return number bufnr The OCPrompt buffer number
-local function open()
+local function toggle_prompt()
   local buf = state.get_ocprompt_buffer()
 
   -- If OCPrompt buffer exists and is valid, just focus it
@@ -52,6 +52,6 @@ local function clear_prompt_buffer()
 end
 
 return {
-  open = open,
+  toggle_prompt = toggle_prompt,
   clear_prompt_buffer = clear_prompt_buffer,
 }
