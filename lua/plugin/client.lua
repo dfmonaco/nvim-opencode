@@ -59,23 +59,9 @@ function Client:request(method, path, callback)
 			local status = 0
 
 			-- Split headers and body
-			-- Try \r\n\r\n first (Windows/standard), then \n\n (Unix)
-			local header_end, body_start
-			local crlfcrlf_start, crlfcrlf_end = raw_response:find("\r\n\r\n")
-			if crlfcrlf_start then
-				header_end = crlfcrlf_start - 1
-				body_start = crlfcrlf_end + 1
-			else
-				local lflf_start, lflf_end = raw_response:find("\n\n")
-				if lflf_start then
-					header_end = lflf_start - 1
-					body_start = lflf_end + 1
-				end
-			end
-
-			if header_end and body_start then
-				local header_section = raw_response:sub(1, header_end)
-				body = raw_response:sub(body_start)
+			local header_section, body_match = raw_response:match("^(.-)\r?\n\r?\n(.*)$")
+			if header_section then
+				body = body_match
 
 				-- Parse status line
 				local status_line = header_section:match("^HTTP/[%d%.]+%s+(%d+)")
