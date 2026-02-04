@@ -23,7 +23,7 @@ end)
 
 -- Buffer-local <C-x> to clear OCPrompt contents (works in both Normal and Insert modes)
 vim.keymap.set({'n', 'i'}, '<C-x>', function()
-  require('plugin.commands.prompt').clear_prompt_buffer()
+  require('plugin.commands.prompt').clear()
   -- Only re-enter insert mode if we were in insert mode
   if vim.fn.mode() == 'i' then
     vim.cmd('startinsert')

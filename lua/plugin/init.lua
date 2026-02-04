@@ -22,7 +22,7 @@ function M.setup(opts)
 
   -- Register OCPrompt command
   vim.api.nvim_create_user_command('OCPrompt', function()
-    require('plugin.commands.prompt').toggle_prompt()
+    require('plugin.commands.prompt').open()
   end, { desc = 'Open/focus OCPrompt buffer in this window' })
 
   -- Map <leader>Op to execute :OCPrompt command (normal mode)

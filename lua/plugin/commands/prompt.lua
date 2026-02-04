@@ -3,7 +3,7 @@ local state = require('plugin.state')
 ---Creates or focuses the OCPrompt buffer in the current window.
 ---If it already exists and is valid, focuses it; else, creates it anew.
 ---@return number bufnr The OCPrompt buffer number
-local function toggle_prompt()
+local function open()
   local buf = state.get_ocprompt_buffer()
 
   -- If OCPrompt buffer exists and is valid, just focus it
@@ -44,7 +44,7 @@ end
 
 ---Clears the contents of the OCPrompt buffer
 ---@return nil
-local function clear_prompt_buffer()
+local function clear()
   local buf = state.get_ocprompt_buffer()
   if buf and vim.api.nvim_buf_is_valid(buf) then
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, {})
@@ -52,6 +52,6 @@ local function clear_prompt_buffer()
 end
 
 return {
-  toggle_prompt = toggle_prompt,
-  clear_prompt_buffer = clear_prompt_buffer,
+  open = open,
+  clear = clear,
 }
