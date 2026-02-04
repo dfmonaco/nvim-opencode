@@ -10,7 +10,7 @@ function M.setup(opts)
 
   -- Register OC command
   vim.api.nvim_create_user_command('OC', function()
-    require('plugin.commands.toggle_terminal')()
+    require('plugin.commands.terminal').toggle()
   end, { desc = 'Toggle terminal (vertical right split)' })
 
   -- Map <leader>O to execute :OC command (normal mode)

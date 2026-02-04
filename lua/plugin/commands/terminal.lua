@@ -4,7 +4,7 @@ local state = require('plugin.state')
 ---Creates if it doesn't exist, hides if visible, shows if hidden
 ---Focus always returns to the original window
 ---@return nil
-local function toggle_terminal()
+local function toggle()
   -- Save current window ID
   local current_win = vim.api.nvim_get_current_win()
   local buf = state.get_terminal_buffer()
@@ -46,4 +46,6 @@ local function toggle_terminal()
   vim.api.nvim_set_current_win(current_win)
 end
 
-return toggle_terminal
+return {
+  toggle = toggle,
+}
