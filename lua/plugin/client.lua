@@ -1,3 +1,5 @@
+local State = require("plugin.state")
+
 ---@class HttpResponse
 ---@field status number HTTP status code
 ---@field body string Response body (raw string)
@@ -120,6 +122,25 @@ function Client:get_health(callback)
 
 		callback(nil, health)
 	end)
+end
+
+---Allocates a free port in range [60000, 61000] and stores it in app state
+---@return number|nil Allocated port number or nil if not found
+function Client.allocate_port()
+  for port = 60000, 61000 do
+    local sock = vim.uv.new_tcp()
+    if sock then
+    local err = sock:bind("127.0.0.1", port)
+    if err == nil or err == 0 then
+      sock:close()
+      State.set_port(port)
+      return port
+    else
+    end
+    sock:close()
+    end
+  end
+	return nil
 end
 
 return Client

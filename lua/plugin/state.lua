@@ -4,6 +4,7 @@ local M = {}
 local state = {
   terminal_bufnr = nil,
   ocprompt_bufnr = nil,
+  port = nil, -- Port allocated for client/server
 }
 
 ---Sets the terminal buffer number
@@ -33,6 +34,18 @@ end
 ---Clears OCPrompt buffer reference
 function M.clear_ocprompt_buffer()
   state.ocprompt_bufnr = nil
+end
+
+---Sets the allocated port number
+---@param port number|nil
+function M.set_port(port)
+  state.port = port
+end
+
+---Gets the allocated port number
+---@return number|nil
+function M.get_port()
+  return state.port
 end
 
 return M
