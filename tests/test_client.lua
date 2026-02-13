@@ -1,10 +1,10 @@
 local MiniTest = require('mini.test')
 local T = MiniTest.new_set()
 
----Helper to spawn an OpenCode server for testing
+---Helper to spawn an OpenCode headless server for testing
 ---@param port number Port to run the server on
 ---@return table|nil server_handle Handle to the spawned server, or nil if failed
-local function spawn_server(port)
+local function spawn_headless_server(port)
 	-- Check if opencode CLI is available
 	local opencode_check = io.popen("which opencode 2>/dev/null")
 	if not opencode_check then
@@ -114,11 +114,7 @@ T["OpenCodeClient"]["request()"] = MiniTest.new_set()
 
 T["OpenCodeClient"]["request()"]["handles successful GET request"] = function()
 	-- Spawn a test server on port 17000
-	local server = spawn_server(17000)
-	if not server then
-		MiniTest.skip("Failed to spawn OpenCode server (is opencode installed?)")
-		return
-	end
+	local server = spawn_headless_server(17000)
 
 	local child = MiniTest.new_child_neovim()
 	child.restart({ "-u", "scripts/minimal_init.lua" })
@@ -185,11 +181,7 @@ T["OpenCodeClient"]["get_health()"] = MiniTest.new_set()
 
 T["OpenCodeClient"]["get_health()"]["returns health status when server is available"] = function()
 	-- Spawn a test server on port 17001
-	local server = spawn_server(17001)
-	if not server then
-		MiniTest.skip("Failed to spawn OpenCode server (is opencode installed?)")
-		return
-	end
+	local server = spawn_headless_server(17001)
 
 	local child = MiniTest.new_child_neovim()
 	child.restart({ "-u", "scripts/minimal_init.lua" })
@@ -249,6 +241,64 @@ T["OpenCodeClient"]["get_health()"]["handles server errors"] = function()
 
 	MiniTest.expect.no_equality(error, vim.NIL)
 	MiniTest.expect.equality(health, vim.NIL)
+
+	child.stop()
+end
+
+T["OpenCodeClient"]["start_tui()"] = MiniTest.new_set()
+
+T["OpenCodeClient"]["start_tui()"]["allocates port, executes correct command, and stores port in State"] = function()
+	local child = MiniTest.new_child_neovim()
+	child.restart({ "-u", "scripts/minimal_init.lua" })
+
+	child.lua([[
+    local State = require('plugin.state')
+    State.set_port(nil) -- Reset state
+    
+    -- Mock vim.system to capture command while preventing actual execution
+    local original_system = vim.system
+    _G.captured_cmd = nil
+    
+    vim.system = function(cmd, opts, callback)
+      _G.captured_cmd = cmd
+      -- Don't actually execute opencode TUI, just capture the command
+      -- Call callback immediately to prevent hanging
+      if callback then
+        vim.schedule(function()
+          callback({ code = 0, stdout = "", stderr = "" })
+        end)
+      end
+    end
+    
+    local Client = require('plugin.client')
+    local success, port = Client.start_tui()
+    
+    _G.test_success = success
+    _G.test_port = port
+    _G.state_port = State.get_port()
+    
+    -- Restore vim.system
+    vim.system = original_system
+  ]])
+
+	local success = child.lua_get([[_G.test_success]])
+	local port = child.lua_get([[_G.test_port]])
+	local state_port = child.lua_get([[_G.state_port]])
+	local captured_cmd = child.lua_get([[_G.captured_cmd]])
+
+	-- Test 1: Port allocation happy path
+	MiniTest.expect.equality(success, true)
+	MiniTest.expect.equality(type(port), "number")
+	MiniTest.expect.equality(port >= 60000 and port <= 61000, true)
+
+	-- Test 2: Correct command is executed
+	MiniTest.expect.equality(captured_cmd[1], "opencode")
+	MiniTest.expect.equality(captured_cmd[2], "--port")
+	MiniTest.expect.equality(captured_cmd[3], tostring(port))
+
+	-- Test 3: Port is stored in State and matches allocated port
+	MiniTest.expect.equality(state_port, port)
+	MiniTest.expect.no_equality(state_port, vim.NIL)
 
 	child.stop()
 end

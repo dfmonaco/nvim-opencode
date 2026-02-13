@@ -143,4 +143,29 @@ function Client.allocate_port()
 	return nil
 end
 
+---Start OpenCode TUI by allocating a free port and launching opencode
+---@param opts? { on_exit?: fun(code: number, stdout: string, stderr: string) }
+---@return boolean|nil, number|string|nil Returns `true, port` on success, or `nil, <error>` on failure
+function Client.start_tui(opts)
+  opts = opts or {}
+  -- Allocate a fresh port each time this function is called
+  local port = Client.allocate_port()
+  if not port then
+    return nil, "failed to allocate a free port"
+  end
+
+  local cmd = { "opencode", "--port", tostring(port) }
+
+  -- Run non-blocking; callback is invoked when the process exits
+  vim.system(cmd, { text = true }, function(result)
+    vim.schedule(function()
+      if opts.on_exit then
+        opts.on_exit(result.code or 0, result.stdout or "", result.stderr or "")
+      end
+    end)
+  end)
+
+  return true, port
+end
+
 return Client
