@@ -184,7 +184,6 @@ function Client:send_message_async(session_id, message_parts, opts, callback)
 	-- Build request body - noReply indicates we don't want to wait for response
 	local request_body = {
 		parts = message_parts,
-		noReply = true,
 	}
 
 	-- Note: model field expects an object structure, not a string
