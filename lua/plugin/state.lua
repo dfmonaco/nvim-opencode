@@ -5,6 +5,7 @@ local state = {
   terminal_bufnr = nil,
   ocprompt_bufnr = nil,
   port = nil, -- Port allocated for client/server
+  session_id = nil, -- Currently active OpenCode session ID
 }
 
 ---Sets the terminal buffer number
@@ -46,6 +47,18 @@ end
 ---@return number|nil
 function M.get_port()
   return state.port
+end
+
+---Sets the session ID
+---@param session_id string|nil
+function M.set_session_id(session_id)
+  state.session_id = session_id
+end
+
+---Gets the session ID
+---@return string|nil
+function M.get_session_id()
+  return state.session_id
 end
 
 return M

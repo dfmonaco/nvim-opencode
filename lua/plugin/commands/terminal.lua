@@ -51,6 +51,50 @@ local function toggle()
   vim.bo[new_buf].buflisted = false
   state.set_terminal_buffer(new_buf)
   vim.api.nvim_set_current_win(current_win)
+
+  -- Asynchronously fetch and store the latest session ID once server is ready
+  vim.defer_fn(function()
+    local client = Client.new({ base_url = 'http://127.0.0.1:' .. tostring(port) })
+    
+    -- Poll health endpoint until server is ready (max 5 seconds)
+    local max_attempts = 50
+    local attempt = 0
+    
+    local function poll_health()
+      attempt = attempt + 1
+      
+      client:get_health(function(err, health)
+        if not err and health and health.healthy then
+          -- Server ready, fetch latest session ID
+          client:get_latest_session_id(function(err_session, session_id)
+            if not err_session and session_id then
+              state.set_session_id(session_id)
+            else
+              vim.schedule(function()
+                vim.notify(
+                  'Failed to fetch session ID: ' .. (err_session or 'unknown error'),
+                  vim.log.levels.WARN
+                )
+              end)
+            end
+          end)
+        elseif attempt < max_attempts then
+          -- Retry after 100ms
+          vim.defer_fn(poll_health, 100)
+        else
+          -- Max attempts reached
+          vim.schedule(function()
+            vim.notify(
+              'OpenCode server did not become healthy after 5 seconds',
+              vim.log.levels.WARN
+            )
+          end)
+        end
+      end)
+    end
+    
+    poll_health()
+  end, 0)
 end
 
 return {

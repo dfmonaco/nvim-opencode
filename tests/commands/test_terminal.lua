@@ -187,4 +187,65 @@ T['OC command']['launches opencode process on terminal creation'] = function()
   child.stop()
 end
 
+T['OC command']['stores session ID after server starts'] = function()
+  local child = MiniTest.new_child_neovim()
+  child.restart({ '-u', 'scripts/minimal_init.lua' })
+  
+  child.lua([[require('plugin').setup()]])
+  
+  -- Create terminal (this will start OpenCode server)
+  child.cmd('OC')
+  
+  -- Wait for server to start and session ID to be stored (up to 6 seconds)
+  child.lua([[
+    _G.session_id = nil
+    _G.found = vim.wait(6000, function()
+      local State = require('plugin.state')
+      _G.session_id = State.get_session_id()
+      return _G.session_id ~= nil
+    end, 100)  -- Check every 100ms
+  ]])
+  
+  local found = child.lua_get([[_G.found]])
+  local session_id = child.lua_get([[_G.session_id]])
+  
+  -- Verify session ID was stored
+  MiniTest.expect.equality(found, true, "Session ID should be stored within 6 seconds")
+  MiniTest.expect.no_equality(session_id, vim.NIL, "Session ID should not be nil")
+  MiniTest.expect.equality(type(session_id), "string", "Session ID should be a string")
+  MiniTest.expect.equality(session_id:sub(1, 4), "ses_", "Session ID should start with 'ses_'")
+  
+  child.stop()
+end
+
+T['OC command']['session ID can be retrieved from state'] = function()
+  local child = MiniTest.new_child_neovim()
+  child.restart({ '-u', 'scripts/minimal_init.lua' })
+  
+  child.lua([[require('plugin').setup()]])
+  
+  -- Create terminal
+  child.cmd('OC')
+  
+  -- Wait for session ID to be stored
+  child.lua([[
+    vim.wait(6000, function()
+      local State = require('plugin.state')
+      return State.get_session_id() ~= nil
+    end, 100)
+  ]])
+  
+  -- Retrieve session ID from state in a separate context
+  child.lua([[
+    local State = require('plugin.state')
+    _G.retrieved_session_id = State.get_session_id()
+  ]])
+  local session_id = child.lua_get([[_G.retrieved_session_id]])
+  
+  MiniTest.expect.no_equality(session_id, vim.NIL, "Should be able to retrieve session ID from state")
+  MiniTest.expect.equality(type(session_id), "string", "Retrieved session ID should be a string")
+  
+  child.stop()
+end
+
 return T
