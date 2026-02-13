@@ -31,6 +31,18 @@ function M.setup(opts)
     noremap = true,
     silent = true,
   })
+
+  -- Register OCSend command
+  vim.api.nvim_create_user_command('OCSend', function(cmd_opts)
+    require('plugin.commands.send_buffer').send()
+  end, { desc = 'Send current buffer (or visual selection) to OpenCode session', range = true })
+
+  -- Map <leader>Os to execute :OCSend command (normal and visual modes)
+  vim.keymap.set({ 'n', 'v' }, '<leader>Os', '<cmd>OCSend<cr>', {
+    desc = 'Send current buffer (or visual selection) to OpenCode session',
+    noremap = true,
+    silent = true,
+  })
 end
 
 return M
