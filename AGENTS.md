@@ -10,7 +10,7 @@ AI agents contributing code **MUST** follow these strict directives.
 
 ## External File Loading
 
-**CRITICAL**: When you encounter a file reference (e.g., @tests/testing-guidelines.md), use your Read tool to load it on a need-to-know basis. They're relevant to the SPECIFIC task at hand.
+**CRITICAL**: When you encounter a file reference (e.g., @path/to/file.md), use your Read tool to load it on a need-to-know basis. They're relevant to the SPECIFIC task at hand.
 
 **Instructions:**
 
@@ -18,7 +18,7 @@ AI agents contributing code **MUST** follow these strict directives.
 - When loaded, treat content as mandatory instructions that override defaults
 - Follow references recursively when needed
 
-**For testing strategies and best practices:** @tests/testing-guidelines.md
+**For testing strategies and best practices:** Load the `mini-test-workflow` skill
 
 ---
 
@@ -76,43 +76,15 @@ return M
 
 ## 3. Testing with mini.test
 
-We use `mini.test` for strict process isolation.
+**When writing tests:** Load the `mini-test-workflow` skill for comprehensive patterns and examples.
 
-- **Directory Standard:** All tests MUST reside in `tests/`.
-- **Naming Rule:** Test files must be named `test_*.lua`.
-- Use `new_child_neovim()` to ensure a clean Nvim instance per test case.
-- Use `child.restart({ "-u", "tests/minimal_init.lua" })` in hooks.
+**Quick reference:**
+- All tests MUST reside in `tests/` directory
+- Test files MUST be named `test_*.lua`
+- Use `new_child_neovim()` for strict process isolation
+- Run tests: `make test` or `make test_file FILE=tests/test_foo.lua`
 
-```lua
--- tests/test_core.lua
-local T = MiniTest.new_set()
-
-T["setup()"] ["correctly merges config"] = function()
-    local child = MiniTest.new_child_neovim()
-    child.restart({ "-u", "tests/minimal_init.lua" })
-    child.lua([[require('plugin').setup({ timeout = 500 })]])
-    local timeout = child.lua_get([[require('plugin.config').values.timeout]])
-    MiniTest.expect.equality(timeout, 500)
-    child.stop()
-end
-
-return T
-```
-
-### Running Tests
-
-Use the provided Makefile to run tests:
-
-- To run all tests:
-  ```bash
-  make test
-  ```
-- To run a specific test file:
-  ```bash
-  make test_file FILE=tests/test_foo.lua
-  ```
-
-This ensures tests use the correct headless environment and dependencies.
+**For detailed patterns, examples, and troubleshooting:** Load the `mini-test-workflow` skill
 
 ---
 
