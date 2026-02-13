@@ -4,6 +4,14 @@ This document provides a comprehensive reference for all OpenCode server HTTP en
 
 **Base URL:** `http://127.0.0.1:4096` (configurable)
 
+**Source Code Reference:**  
+This documentation is based on OpenCode server source code. For the canonical schema definitions, see:
+- **Route definitions**: `/packages/opencode/src/server/routes/*.ts`
+- **Type schemas**: `/packages/opencode/src/session/*.ts`
+- **Generated TypeScript types**: `/packages/sdk/js/src/gen/types.gen.ts`
+
+**Note:** This documentation was last updated based on OpenCode v1.1.60. Always refer to the source code for the most accurate and up-to-date schemas.
+
 ---
 
 ## Table of Contents
@@ -190,9 +198,19 @@ Create a new session.
 ```json
 {
   "parentID": "optional_parent_id",
-  "title": "optional_title"
+  "title": "optional_title",
+  "permission": {
+    "bash": true,
+    "read": true,
+    "write": true,
+    "edit": true,
+    "grep": true,
+    "glob": true
+  }
 }
 ```
+
+All fields are optional. If not provided, defaults will be used.
 
 **Response:** `Session` object
 
@@ -381,19 +399,96 @@ Send a message and wait for response.
 ```json
 {
   "messageID": "optional_id",
-  "model": "optional_model",
+  "model": {
+    "providerID": "provider_id",
+    "modelID": "model_id"
+  },
   "agent": "optional_agent",
   "noReply": false,
   "system": "optional_system_message",
-  "tools": [],
+  "format": "optional_format",
+  "variant": "optional_variant",
   "parts": [
     {
       "type": "text",
-      "content": "Message content"
+      "text": "Message text content"
     }
   ]
 }
 ```
+
+**Part Types:**
+
+The `parts` array accepts multiple part types:
+
+1. **TextPartInput** - Text content:
+   ```json
+   {
+     "id": "optional_part_id",
+     "type": "text",
+     "text": "Message text content",
+     "synthetic": false,
+     "ignored": false,
+     "time": {
+       "start": 1234567890,
+       "end": 1234567900
+     },
+     "metadata": {}
+   }
+   ```
+   Required: `type`, `text`  
+   Optional: `id`, `synthetic`, `ignored`, `time`, `metadata`
+
+2. **FilePartInput** - File attachment:
+   ```json
+   {
+     "id": "optional_part_id",
+     "type": "file",
+     "mime": "text/plain",
+     "filename": "example.txt",
+     "url": "file:///path/to/file",
+     "source": {
+       "text": {
+         "value": "file content",
+         "start": 0,
+         "end": 100
+       },
+       "type": "file",
+       "path": "/path/to/file"
+     }
+   }
+   ```
+   Required: `type`, `mime`, `url`  
+   Optional: `id`, `filename`, `source`
+
+3. **AgentPartInput** - Agent reference:
+   ```json
+   {
+     "id": "optional_part_id",
+     "type": "agent",
+     "name": "agent_name",
+     "source": {
+       "value": "source text",
+       "start": 0,
+       "end": 10
+     }
+   }
+   ```
+   Required: `type`, `name`  
+   Optional: `id`, `source`
+
+4. **SubtaskPartInput** - Subtask definition:
+   ```json
+   {
+     "id": "optional_part_id",
+     "type": "subtask",
+     "prompt": "Task prompt text",
+     "description": "Task description",
+     "agent": "agent_name"
+   }
+   ```
+   Required: `type`, `prompt`, `description`, `agent`  
+   Optional: `id`
 
 **Response:**
 ```json
@@ -419,9 +514,16 @@ Get message details.
 
 Send a message asynchronously (no wait).
 
-**Request Body:** Same as `/session/:id/message`
+**Request Body:** Same as `/session/:id/message` (see above for complete schema)
 
 **Response:** `204 No Content`
+
+**Usage Notes:**
+- This endpoint returns immediately (204) without waiting for the AI response
+- The AI response will be delivered asynchronously via Server-Sent Events (SSE)
+- Subscribe to the `/event` endpoint to receive the response
+- Useful for avoiding connection timeouts on slow networks (VPN/Tailscale)
+- The `noReply` field in the request body is typically set to `true` for this endpoint
 
 ### POST `/session/:id/command`
 
@@ -778,20 +880,41 @@ OpenAPI 3.1 specification.
 ## Type References
 
 For detailed TypeScript type definitions, see:
-https://github.com/anomalyco/opencode/blob/dev/packages/sdk/js/src/gen/types.gen.ts
+- **GitHub (public)**: https://github.com/anomalyco/opencode/blob/dev/packages/sdk/js/src/gen/types.gen.ts
+- **Local source**: `/packages/sdk/js/src/gen/types.gen.ts` (auto-generated from OpenAPI spec)
+- **Schema source**: `/packages/opencode/src/session/message-v2.ts` and `/packages/opencode/src/session/prompt.ts`
 
 Common types used across endpoints:
-- `Session`
-- `Message`
-- `Part`
-- `Project`
-- `Config`
-- `Provider`
-- `Command`
-- `Agent`
-- `File`
-- `FileNode`
-- `FileContent`
-- `FileDiff`
-- `Symbol`
-- `Todo`
+- `Session` - Session information
+- `Message` / `UserMessage` / `AssistantMessage` - Message objects
+- `Part` / `TextPart` / `FilePart` / `AgentPart` / `SubtaskPart` - Message parts
+- `TextPartInput` / `FilePartInput` / `AgentPartInput` / `SubtaskPartInput` - Input types for parts
+- `Project` - Project information
+- `Config` - Configuration
+- `Provider` - AI provider information
+- `Command` - Slash command
+- `Agent` - Agent definition
+- `File` / `FileNode` / `FileContent` - File operations
+- `FileDiff` - File diff information
+- `Symbol` - Code symbol (LSP)
+- `Todo` - Session todo item
+
+**Part Type Hierarchy:**
+
+Input types (used in requests):
+- `TextPartInput` - Simple text message
+- `FilePartInput` - File attachment
+- `AgentPartInput` - Agent reference
+- `SubtaskPartInput` - Subtask definition
+
+Output types (received in responses):
+- `TextPart` - Text content with metadata
+- `ReasoningPart` - AI reasoning text
+- `FilePart` - File reference
+- `ToolPart` - Tool invocation
+- `StepStartPart` / `StepFinishPart` - Step boundaries
+- `SnapshotPart` - State snapshot
+- `PatchPart` - Code patch
+- `AgentPart` - Agent switch
+- `RetryPart` - Retry marker
+- `CompactionPart` - Compaction marker
