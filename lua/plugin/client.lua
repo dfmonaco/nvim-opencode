@@ -132,6 +132,46 @@ function Client:get_health(callback)
 	end)
 end
 
+---Get the ID of the most recently active session
+---Returns the session with the latest 'time.updated' timestamp
+---@param callback fun(err: string|nil, session_id: string|nil)
+---@return nil
+function Client:get_latest_session_id(callback)
+	self:request("GET", "/session", function(err, response)
+		if err then
+			callback(err, nil)
+			return
+		end
+
+		if not response or response.status ~= 200 then
+			callback("Failed to fetch sessions with status: " .. (response and response.status or "unknown"), nil)
+			return
+		end
+
+		-- Parse JSON response
+		local ok, decoded = pcall(vim.json.decode, response.body)
+		if not ok then
+			callback("Failed to parse sessions response: " .. tostring(decoded), nil)
+			return
+		end
+
+		-- Sessions are already sorted by time.updated descending
+		-- Return the first session's ID
+		if type(decoded) ~= "table" or #decoded == 0 then
+			callback("No sessions found", nil)
+			return
+		end
+
+		local latest_session = decoded[1]
+		if not latest_session or not latest_session.id then
+			callback("Invalid session data", nil)
+			return
+		end
+
+		callback(nil, latest_session.id)
+	end)
+end
+
 ---Send a message to a session asynchronously (no wait for response)
 ---@param session_id string Session ID to send message to
 ---@param message_parts MessagePart[] Array of message parts

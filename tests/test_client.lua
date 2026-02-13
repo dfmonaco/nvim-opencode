@@ -567,4 +567,74 @@ T["OpenCodeClient"]["send_message_async()"]["supports optional parameters"] = fu
 	server:kill()
 end
 
+T["OpenCodeClient"]["get_latest_session_id()"] = MiniTest.new_set()
+
+T["OpenCodeClient"]["get_latest_session_id()"]["returns latest session ID"] = function()
+	local server = spawn_headless_server(17006)
+	if not server then
+		MiniTest.skip("OpenCode CLI not available or server failed to start")
+		return
+	end
+
+	local child = MiniTest.new_child_neovim()
+	child.restart({ "-u", "scripts/minimal_init.lua" })
+
+	child.lua([[
+		local Client = require('plugin.client')
+		_G.client = Client.new({ base_url = 'http://127.0.0.1:17006' })
+		_G.result = nil
+		_G.error = nil
+		_G.done = false
+		
+		_G.client:get_latest_session_id(function(err, session_id)
+			_G.error = err
+			_G.result = session_id
+			_G.done = true
+		end)
+	]])
+
+	child.lua([[vim.wait(5000, function() return _G.done end)]])
+
+	local error = child.lua_get([[_G.error]])
+	local result = child.lua_get([[_G.result]])
+
+	MiniTest.expect.equality(error, vim.NIL, "Should not return an error")
+	MiniTest.expect.no_equality(result, vim.NIL, "Should return a session ID")
+	MiniTest.expect.equality(type(result), "string", "Session ID should be a string")
+	-- Session IDs start with "ses_"
+	MiniTest.expect.equality(result:sub(1, 4), "ses_", "Session ID should start with 'ses_'")
+
+	child.stop()
+	server:kill()
+end
+
+T["OpenCodeClient"]["get_latest_session_id()"]["handles server errors"] = function()
+	local child = MiniTest.new_child_neovim()
+	child.restart({ "-u", "scripts/minimal_init.lua" })
+
+	child.lua([[
+		local Client = require('plugin.client')
+		_G.client = Client.new({ base_url = 'http://localhost:9999' })
+		_G.result = nil
+		_G.error = nil
+		_G.done = false
+		
+		_G.client:get_latest_session_id(function(err, session_id)
+			_G.error = err
+			_G.result = session_id
+			_G.done = true
+		end)
+	]])
+
+	child.lua([[vim.wait(6000, function() return _G.done end)]])
+
+	local error = child.lua_get([[_G.error]])
+	local result = child.lua_get([[_G.result]])
+
+	MiniTest.expect.no_equality(error, vim.NIL, "Should return an error")
+	MiniTest.expect.equality(result, vim.NIL, "Should not return a result on error")
+
+	child.stop()
+end
+
 return T
