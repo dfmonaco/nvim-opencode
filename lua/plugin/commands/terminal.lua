@@ -46,7 +46,7 @@ local function toggle()
     return
   end
 
-  vim.cmd('vsplit | terminal opencode --port ' .. tostring(port))
+  vim.cmd('vsplit | terminal opencode --continue --port ' .. tostring(port))
   local new_buf = vim.api.nvim_get_current_buf()
   vim.bo[new_buf].buflisted = false
   state.set_terminal_buffer(new_buf)
