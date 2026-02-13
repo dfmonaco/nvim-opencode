@@ -318,4 +318,253 @@ T["OpenCodeClient"]["allocate_port()"]["skips ports already in use"] = function(
 	child.stop()
 end
 
+T["OpenCodeClient"]["send_message_async()"] = MiniTest.new_set()
+
+T["OpenCodeClient"]["send_message_async()"]["sends message asynchronously and returns success"] = function()
+	-- Spawn test server on unique port 17003
+	local server = spawn_headless_server(17003)
+	if not server then
+		MiniTest.skip("OpenCode CLI not available or server failed to start")
+		return
+	end
+
+	local child = MiniTest.new_child_neovim()
+	child.restart({ "-u", "scripts/minimal_init.lua" })
+
+	-- First create a session to send message to
+	child.lua([[
+		local Client = require('plugin.client')
+		_G.client = Client.new({ base_url = 'http://127.0.0.1:17003' })
+		_G.session_id = nil
+		_G.create_done = false
+		
+		-- Create a session first
+		local url = 'http://127.0.0.1:17003/session'
+		local curl_args = {
+			'curl', '-s', '-X', 'POST',
+			'-H', 'Content-Type: application/json',
+			'-d', '{}',
+			url
+		}
+		
+		vim.system(curl_args, { text = true }, function(result)
+			vim.schedule(function()
+				if result.code == 0 then
+					local ok, session = pcall(vim.json.decode, result.stdout)
+					if ok and session and session.id then
+						_G.session_id = session.id
+					end
+				end
+				_G.create_done = true
+			end)
+		end)
+	]])
+
+	-- Wait for session creation
+	child.lua([[vim.wait(5000, function() return _G.create_done end)]])
+
+	local session_id = child.lua_get([[_G.session_id]])
+	if session_id == vim.NIL then
+		server:kill()
+		child.stop()
+		MiniTest.skip("Failed to create test session")
+		return
+	end
+
+	-- Now send message asynchronously
+	child.lua(string.format([[
+		_G.result = nil
+		_G.error = nil
+		_G.done = false
+		
+		local message_parts = {
+			{ type = 'text', text = 'Test message' }
+		}
+		
+		_G.client:send_message_async('%s', message_parts, nil, function(err, result)
+			_G.error = err
+			_G.result = result
+			_G.done = true
+		end)
+	]], session_id))
+
+	-- Wait for async callback
+	child.lua([[vim.wait(5000, function() return _G.done end)]])
+
+	-- Extract and verify results
+	local error = child.lua_get([[_G.error]])
+	local result = child.lua_get([[_G.result]])
+
+	MiniTest.expect.equality(error, vim.NIL, "Should not return an error")
+	MiniTest.expect.equality(result, true, "Should return true for successful async send")
+
+	-- Cleanup
+	child.stop()
+	server:kill()
+end
+
+T["OpenCodeClient"]["send_message_async()"]["handles server connection errors"] = function()
+	local child = MiniTest.new_child_neovim()
+	child.restart({ "-u", "scripts/minimal_init.lua" })
+
+	-- Point to non-existent server
+	child.lua([[
+		local Client = require('plugin.client')
+		_G.client = Client.new({ base_url = 'http://localhost:9999', timeout = 2000 })
+		_G.result = nil
+		_G.error = nil
+		_G.done = false
+		
+		local message_parts = {
+			{ type = 'text', text = 'Test message' }
+		}
+		
+		_G.client:send_message_async('test-session-id', message_parts, nil, function(err, result)
+			_G.error = err
+			_G.result = result
+			_G.done = true
+		end)
+	]])
+
+	child.lua([[vim.wait(6000, function() return _G.done end)]])
+
+	local error = child.lua_get([[_G.error]])
+	local result = child.lua_get([[_G.result]])
+
+	MiniTest.expect.no_equality(error, vim.NIL, "Should return an error")
+	MiniTest.expect.equality(result, vim.NIL, "Should not return a result on error")
+
+	child.stop()
+end
+
+T["OpenCodeClient"]["send_message_async()"]["accepts request even with non-existent session"] = function()
+	-- Spawn test server
+	local server = spawn_headless_server(17004)
+	if not server then
+		MiniTest.skip("OpenCode CLI not available or server failed to start")
+		return
+	end
+
+	local child = MiniTest.new_child_neovim()
+	child.restart({ "-u", "scripts/minimal_init.lua" })
+
+	child.lua([[
+		local Client = require('plugin.client')
+		_G.client = Client.new({ base_url = 'http://127.0.0.1:17004' })
+		_G.result = nil
+		_G.error = nil
+		_G.done = false
+		
+		local message_parts = {
+			{ type = 'text', text = 'Test message' }
+		}
+		
+		-- Send to non-existent session
+		-- Async endpoint may still return 204 since validation is deferred
+		_G.client:send_message_async('invalid-session-id', message_parts, nil, function(err, result)
+			_G.error = err
+			_G.result = result
+			_G.done = true
+		end)
+	]])
+
+	child.lua([[vim.wait(5000, function() return _G.done end)]])
+
+	local error = child.lua_get([[_G.error]])
+	local result = child.lua_get([[_G.result]])
+
+	-- Async endpoint accepts the request (204) even if session doesn't exist
+	-- Validation happens later when message is actually processed
+	-- So we just verify the client successfully sent the request
+	MiniTest.expect.equality(error, vim.NIL, "Client should successfully send request")
+	MiniTest.expect.equality(result, true, "Should return true for successful send")
+
+	child.stop()
+	server:kill()
+end
+
+T["OpenCodeClient"]["send_message_async()"]["supports optional parameters"] = function()
+	-- Spawn test server
+	local server = spawn_headless_server(17005)
+	if not server then
+		MiniTest.skip("OpenCode CLI not available or server failed to start")
+		return
+	end
+
+	local child = MiniTest.new_child_neovim()
+	child.restart({ "-u", "scripts/minimal_init.lua" })
+
+	-- Create a session first
+	child.lua([[
+		local Client = require('plugin.client')
+		_G.client = Client.new({ base_url = 'http://127.0.0.1:17005' })
+		_G.session_id = nil
+		_G.create_done = false
+		
+		local url = 'http://127.0.0.1:17005/session'
+		local curl_args = {
+			'curl', '-s', '-X', 'POST',
+			'-H', 'Content-Type: application/json',
+			'-d', '{}',
+			url
+		}
+		
+		vim.system(curl_args, { text = true }, function(result)
+			vim.schedule(function()
+				if result.code == 0 then
+					local ok, session = pcall(vim.json.decode, result.stdout)
+					if ok and session and session.id then
+						_G.session_id = session.id
+					end
+				end
+				_G.create_done = true
+			end)
+		end)
+	]])
+
+	child.lua([[vim.wait(5000, function() return _G.create_done end)]])
+
+	local session_id = child.lua_get([[_G.session_id]])
+	if session_id == vim.NIL then
+		server:kill()
+		child.stop()
+		MiniTest.skip("Failed to create test session")
+		return
+	end
+
+	-- Send message with optional parameters
+	child.lua(string.format([[
+		_G.result = nil
+		_G.error = nil
+		_G.done = false
+		
+		local message_parts = {
+			{ type = 'text', text = 'Test with options' }
+		}
+		
+		local opts = {
+			agent = 'test-agent',
+			system = 'Test system message'
+		}
+		
+		_G.client:send_message_async('%s', message_parts, opts, function(err, result)
+			_G.error = err
+			_G.result = result
+			_G.done = true
+		end)
+	]], session_id))
+
+	child.lua([[vim.wait(5000, function() return _G.done end)]])
+
+	local error = child.lua_get([[_G.error]])
+	local result = child.lua_get([[_G.result]])
+
+	-- Should succeed even with optional parameters
+	MiniTest.expect.equality(error, vim.NIL, "Should not return an error with optional params")
+	MiniTest.expect.equality(result, true, "Should return true with optional params")
+
+	child.stop()
+	server:kill()
+end
+
 return T

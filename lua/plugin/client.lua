@@ -9,6 +9,14 @@ local State = require("plugin.state")
 ---@field healthy boolean Server health status
 ---@field version string Server version
 
+---@class MessagePart
+---@field type string Part type (e.g., "text")
+---@field text string Part text content (for type="text")
+
+---@class SendMessageAsyncOptions
+---@field agent? string Optional agent name
+---@field system? string Optional system message
+
 ---@class OpenCodeClient
 ---@field base_url string Base URL of the OpenCode server
 ---@field timeout number Request timeout in milliseconds
@@ -121,6 +129,92 @@ function Client:get_health(callback)
 		}
 
 		callback(nil, health)
+	end)
+end
+
+---Send a message to a session asynchronously (no wait for response)
+---@param session_id string Session ID to send message to
+---@param message_parts MessagePart[] Array of message parts
+---@param opts? SendMessageAsyncOptions Optional parameters
+---@param callback fun(err: string|nil, success: boolean|nil)
+---@return nil
+function Client:send_message_async(session_id, message_parts, opts, callback)
+	opts = opts or {}
+
+	-- Build request body - noReply indicates we don't want to wait for response
+	local request_body = {
+		parts = message_parts,
+		noReply = true,
+	}
+
+	-- Note: model field expects an object structure, not a string
+	-- Omitting it for now until we know the correct format
+	if opts.agent then
+		request_body.agent = opts.agent
+	end
+	if opts.system then
+		request_body.system = opts.system
+	end
+
+	-- Encode request body to JSON
+	local ok, body_json = pcall(vim.json.encode, request_body)
+	if not ok then
+		callback("Failed to encode request body: " .. tostring(body_json), nil)
+		return
+	end
+
+	-- Build curl command with JSON body
+	local url = self.base_url .. "/session/" .. session_id .. "/prompt_async"
+	local curl_args = {
+		"curl",
+		"-s",
+		"-i",
+		"-X",
+		"POST",
+		"-H",
+		"Content-Type: application/json",
+		"-d",
+		body_json,
+		"--max-time",
+		tostring(math.floor(self.timeout / 1000)),
+		url,
+	}
+
+	vim.system(curl_args, { text = true }, function(result)
+		vim.schedule(function()
+			if result.code ~= 0 then
+				callback(result.stderr or "Request failed", nil)
+				return
+			end
+
+			-- Parse response to check status code
+			local raw_response = result.stdout or ""
+			local status = 0
+			local body = ""
+
+			-- Extract status code and body from response
+			local header_section, body_match = raw_response:match("^(.-)\r?\n\r?\n(.*)$")
+			if header_section then
+				body = body_match or ""
+				local status_line = header_section:match("^HTTP/[%d%.]+%s+(%d+)")
+				if status_line then
+					status = tonumber(status_line) or 0
+				end
+			end
+
+			-- 204 No Content is the expected success response
+			if status ~= 204 then
+				-- Include body in error message if available (might contain error details)
+				local error_msg = "Send message failed with status: " .. status
+				if body and body ~= "" then
+					error_msg = error_msg .. " - " .. body
+				end
+				callback(error_msg, nil)
+				return
+			end
+
+			callback(nil, true)
+		end)
 	end)
 end
 
