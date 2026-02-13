@@ -178,9 +178,11 @@ T['OC command']['launches opencode process on terminal creation'] = function()
   local contains_opencode = term_buf_name:match('opencode') ~= nil
   MiniTest.expect.equality(contains_opencode, true)
   
-  -- Verify the exact command includes the port flag
-  local contains_port = term_buf_name:match('60000') ~= nil
-  MiniTest.expect.equality(contains_port, true)
+  -- Verify command includes a dynamically allocated port in correct range
+  local port_pattern = term_buf_name:match('%-%-port%s+(%d+)')
+  local port = tonumber(port_pattern)
+  MiniTest.expect.equality(port ~= nil, true, "Port should be present in terminal command")
+  MiniTest.expect.equality(port >= 60000 and port <= 61000, true, "Port should be in allocated range")
   
   child.stop()
 end

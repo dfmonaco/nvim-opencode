@@ -245,9 +245,9 @@ T["OpenCodeClient"]["get_health()"]["handles server errors"] = function()
 	child.stop()
 end
 
-T["OpenCodeClient"]["start_tui()"] = MiniTest.new_set()
+T["OpenCodeClient"]["allocate_port()"] = MiniTest.new_set()
 
-T["OpenCodeClient"]["start_tui()"]["allocates port, executes correct command, and stores port in State"] = function()
+T["OpenCodeClient"]["allocate_port()"]["allocates port in range 60000-61000 and stores in State"] = function()
 	local child = MiniTest.new_child_neovim()
 	child.restart({ "-u", "scripts/minimal_init.lua" })
 
@@ -255,51 +255,66 @@ T["OpenCodeClient"]["start_tui()"]["allocates port, executes correct command, an
     local State = require('plugin.state')
     State.set_port(nil) -- Reset state
     
-    -- Mock vim.system to capture command while preventing actual execution
-    local original_system = vim.system
-    _G.captured_cmd = nil
-    
-    vim.system = function(cmd, opts, callback)
-      _G.captured_cmd = cmd
-      -- Don't actually execute opencode TUI, just capture the command
-      -- Call callback immediately to prevent hanging
-      if callback then
-        vim.schedule(function()
-          callback({ code = 0, stdout = "", stderr = "" })
-        end)
-      end
-    end
-    
     local Client = require('plugin.client')
-    local success, port = Client.start_tui()
+    local port, err = Client.allocate_port()
     
-    _G.test_success = success
     _G.test_port = port
+    _G.test_err = err
     _G.state_port = State.get_port()
-    
-    -- Restore vim.system
-    vim.system = original_system
   ]])
 
-	local success = child.lua_get([[_G.test_success]])
 	local port = child.lua_get([[_G.test_port]])
+	local err = child.lua_get([[_G.test_err]])
 	local state_port = child.lua_get([[_G.state_port]])
-	local captured_cmd = child.lua_get([[_G.captured_cmd]])
 
-	-- Test 1: Port allocation happy path
-	MiniTest.expect.equality(success, true)
+	-- Verify port is allocated with no error
+	MiniTest.expect.no_equality(port, vim.NIL, "allocate_port() should return a port")
 	MiniTest.expect.equality(type(port), "number")
-	MiniTest.expect.equality(port >= 60000 and port <= 61000, true)
+	MiniTest.expect.equality(err, vim.NIL, "allocate_port() should not return an error")
 
-	-- Test 2: Correct command is executed
-	MiniTest.expect.equality(captured_cmd[1], "opencode")
-	MiniTest.expect.equality(captured_cmd[2], "--port")
-	MiniTest.expect.equality(captured_cmd[3], tostring(port))
+	-- Verify port is in correct range
+	MiniTest.expect.equality(port >= 60000 and port <= 61000, true, "Port should be in range 60000-61000")
 
-	-- Test 3: Port is stored in State and matches allocated port
-	MiniTest.expect.equality(state_port, port)
-	MiniTest.expect.no_equality(state_port, vim.NIL)
+	-- Verify port is stored in State
+	MiniTest.expect.equality(state_port, port, "State should contain the same port")
 
+	child.stop()
+end
+
+T["OpenCodeClient"]["allocate_port()"]["skips ports already in use"] = function()
+	local child = MiniTest.new_child_neovim()
+	child.restart({ "-u", "scripts/minimal_init.lua" })
+
+	-- Start a headless OpenCode server on port 60000
+	local server = spawn_headless_server(60000)
+	vim.uv.sleep(200) -- Wait for server to bind to port
+
+	child.lua([[
+    local State = require('plugin.state')
+    State.set_port(nil) -- Reset state
+    
+    local Client = require('plugin.client')
+    local port, err = Client.allocate_port()
+    
+    _G.test_port = port
+    _G.test_err = err
+  ]])
+
+	local port = child.lua_get([[_G.test_port]])
+	local err = child.lua_get([[_G.test_err]])
+
+	-- Port should not be 60000 since it's occupied
+	MiniTest.expect.no_equality(port, 60000, "Should skip port 60000 that is in use")
+	MiniTest.expect.equality(type(port), "number", "Should allocate a different port")
+	MiniTest.expect.equality(err, vim.NIL, "Should not return an error")
+
+	-- Should be in range and greater than 60000
+	MiniTest.expect.equality(port > 60000 and port <= 61000, true, "Should allocate next available port after 60000")
+
+	-- Cleanup
+	if server then
+		server:kill()
+	end
 	child.stop()
 end
 

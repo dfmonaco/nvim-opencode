@@ -1,4 +1,5 @@
 local state = require('plugin.state')
+local Client = require('plugin.client')
 
 ---Toggles the terminal window
 ---Creates if it doesn't exist, hides if visible, shows if hidden
@@ -38,8 +39,14 @@ local function toggle()
     return
   end
 
-  -- No buffer: create terminal in right split
-  vim.cmd('vsplit | terminal opencode --port 60000')
+  -- No buffer: create terminal in right split with dynamic port
+  local port, err = Client.allocate_port()
+  if not port then
+    vim.notify(err or "Failed to allocate port for OpenCode terminal", vim.log.levels.ERROR)
+    return
+  end
+
+  vim.cmd('vsplit | terminal opencode --port ' .. tostring(port))
   local new_buf = vim.api.nvim_get_current_buf()
   vim.bo[new_buf].buflisted = false
   state.set_terminal_buffer(new_buf)

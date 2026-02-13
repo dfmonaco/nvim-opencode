@@ -124,48 +124,34 @@ function Client:get_health(callback)
 	end)
 end
 
----Allocates a free port in range [60000, 61000] and stores it in app state
----@return number|nil Allocated port number or nil if not found
-function Client.allocate_port()
-  for port = 60000, 61000 do
-    local sock = vim.uv.new_tcp()
-    if sock then
-    local err = sock:bind("127.0.0.1", port)
-    if err == nil or err == 0 then
-      sock:close()
-      State.set_port(port)
-      return port
-    else
-    end
-    sock:close()
-    end
-  end
-	return nil
+---Checks if a port is available by attempting to connect to it
+---@param port number Port number to check
+---@return boolean True if port is available (connection fails), false if occupied (connection succeeds)
+local function is_port_available(port)
+	local ok, chan = pcall(vim.fn.sockconnect, "tcp", string.format("localhost:%d", port), {
+		rpc = false,
+		timeout = 50,
+	})
+
+	if not ok or chan == 0 then
+		return true -- Connection failed = port is free
+	end
+
+	pcall(vim.fn.chanclose, chan)
+	return false -- Connection succeeded = port is in use
 end
 
----Start OpenCode TUI by allocating a free port and launching opencode
----@param opts? { on_exit?: fun(code: number, stdout: string, stderr: string) }
----@return boolean|nil, number|string|nil Returns `true, port` on success, or `nil, <error>` on failure
-function Client.start_tui(opts)
-  opts = opts or {}
-  -- Allocate a fresh port each time this function is called
-  local port = Client.allocate_port()
-  if not port then
-    return nil, "failed to allocate a free port"
-  end
-
-  local cmd = { "opencode", "--port", tostring(port) }
-
-  -- Run non-blocking; callback is invoked when the process exits
-  vim.system(cmd, { text = true }, function(result)
-    vim.schedule(function()
-      if opts.on_exit then
-        opts.on_exit(result.code or 0, result.stdout or "", result.stderr or "")
-      end
-    end)
-  end)
-
-  return true, port
+---Allocates a free port in range [60000, 61000] and stores it in app state
+---@return number|nil port Allocated port number or nil if all ports occupied
+---@return string|nil error Error message if no port available
+function Client.allocate_port()
+	for port = 60000, 61000 do
+		if is_port_available(port) then
+			State.set_port(port)
+			return port, nil
+		end
+	end
+	return nil, "All ports in range 60000-61000 are occupied"
 end
 
 return Client
