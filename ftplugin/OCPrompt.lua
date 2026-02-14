@@ -29,3 +29,8 @@ vim.keymap.set({'n', 'i'}, '<C-x>', function()
     vim.cmd('startinsert')
   end
 end, { buffer = true, desc = 'Clear OCPrompt buffer' })
+
+-- Buffer-local <C-CR> to send OCPrompt buffer contents (works in both Normal and Insert modes)
+vim.keymap.set({'n', 'i'}, '<C-CR>', function()
+  require('plugin.commands.send_buffer').send()
+end, { buffer = true, desc = 'Send OCPrompt buffer to OpenCode session' })
