@@ -34,3 +34,23 @@ end, { buffer = true, desc = 'Clear OCPrompt buffer' })
 vim.keymap.set({'n', 'i'}, '<C-CR>', function()
   require('plugin.commands.send_buffer').send()
 end, { buffer = true, desc = 'Send OCPrompt buffer to OpenCode session' })
+
+-- File reference picker trigger: @ in insert mode
+vim.api.nvim_create_autocmd('InsertCharPre', {
+  buffer = 0,
+  callback = function()
+    if vim.v.char == '@' then
+      -- Schedule to avoid interfering with character insertion
+      vim.schedule(function()
+        require('plugin.commands.file_picker').show()
+      end)
+    end
+  end,
+  desc = 'Trigger file picker when @ is typed in insert mode'
+})
+
+-- Highlight group for file references
+vim.api.nvim_set_hl(0, 'OCFileReference', {
+  link = 'Special',  -- Links to built-in Special highlight
+  default = true,     -- Allows users to override
+})
