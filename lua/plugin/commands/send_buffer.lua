@@ -58,8 +58,8 @@ local function send()
     return
   end
 
-  -- Create client with correct port
-  local client = Client.new({ base_url = 'http://127.0.0.1:' .. tostring(port) })
+  -- Create client with port from state
+  local client = Client.get_or_create_client()
 
   -- Build message parts
   local message_parts = {

@@ -1,5 +1,12 @@
 local State = require("plugin.state")
 
+-- Constants
+local DEFAULT_HOST = "127.0.0.1"
+local DEFAULT_PORT = 4096
+
+-- Singleton cache for client instances (keyed by base_url)
+local client_cache = {}
+
 ---@class HttpResponse
 ---@field status number HTTP status code
 ---@field body string Response body (raw string)
@@ -32,6 +39,21 @@ function Client.new(opts)
 	self.base_url = opts.base_url or "http://127.0.0.1:4096"
 	self.timeout = opts.timeout or 5000
 	return self
+end
+
+---Get or create a singleton client instance for the given port
+---Returns a cached client if one exists for the host:port combination, otherwise creates a new one
+---@param port? number Optional port number, defaults to state port or 4096
+---@return OpenCodeClient
+function Client.get_or_create_client(port)
+	port = port or State.get_port() or DEFAULT_PORT
+	local base_url = string.format("http://%s:%d", DEFAULT_HOST, port)
+
+	if not client_cache[base_url] then
+		client_cache[base_url] = Client.new({ base_url = base_url })
+	end
+
+	return client_cache[base_url]
 end
 
 ---Execute an HTTP request using curl

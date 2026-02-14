@@ -54,7 +54,7 @@ local function toggle()
 
   -- Asynchronously fetch and store the latest session ID once server is ready
   vim.defer_fn(function()
-    local client = Client.new({ base_url = 'http://127.0.0.1:' .. tostring(port) })
+    local client = Client.get_or_create_client()
     
     -- Poll health endpoint until server is ready (max 5 seconds)
     local max_attempts = 50
