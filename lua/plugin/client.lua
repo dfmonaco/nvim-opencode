@@ -286,13 +286,14 @@ local function is_port_available(port)
 	return false -- Connection succeeded = port is in use
 end
 
----Allocates a free port in range [60000, 61000] and stores it in app state.
+---Allocates a free port in range [60000, 61000].
+---The caller is responsible for storing the port in state after any commands
+---that may fire autocommands (e.g. vim.cmd('terminal ...')).
 ---@return number|nil port Allocated port number or nil if all ports occupied
 ---@return string|nil error Error message if no port available
 function Client.allocate_port()
 	for port = 60000, 61000 do
 		if is_port_available(port) then
-			State.set_port(port)
 			return port, nil
 		end
 	end
