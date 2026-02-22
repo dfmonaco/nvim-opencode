@@ -1,9 +1,20 @@
 local M = {}
 
+-- Private state for the plugin. Example shape:
+-- {
+--   terminal_bufnr = 5,                          -- buffer running the OpenCode process
+--   ocprompt_bufnr = 8,                          -- buffer used for prompt input
+--   port           = 4096,                       -- port the OpenCode server is listening on
+--   session_id     = "ses_abc123",               -- active session ID
+--   client_cache   = {                           -- reusable HTTP client instances
+--     ["http://127.0.0.1:4096"] = <OpenCodeClient>,
+--   },
+-- }
+
 -- Private state for plugin buffers
 local state = {
-  terminal_bufnr = nil,
-  ocprompt_bufnr = nil,
+  terminal_bufnr = nil, -- Buffer number for the embedded terminal running the OpenCode process
+  ocprompt_bufnr = nil, -- Buffer number for the OCPrompt input buffer (opens in current window)
   port = nil, -- Port allocated for client/server
   session_id = nil, -- Currently active OpenCode session ID
   ---@type table<string, any> Singleton cache of OpenCodeClient instances keyed by base_url
