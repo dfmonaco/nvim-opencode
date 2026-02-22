@@ -3,6 +3,7 @@ local M = {}
 -- Private state for the plugin. Example shape:
 -- {
 --   terminal_bufnr = 5,                          -- buffer running the OpenCode process
+--   terminal_winid = 1003,                       -- window currently showing the terminal buffer
 --   ocprompt_bufnr = 8,                          -- buffer used for prompt input
 --   port           = 4096,                       -- port the OpenCode server is listening on
 --   session_id     = "ses_abc123",               -- active session ID
@@ -14,6 +15,7 @@ local M = {}
 -- Private state for plugin buffers
 local state = {
   terminal_bufnr = nil, -- Buffer number for the embedded terminal running the OpenCode process
+  terminal_winid = nil, -- Window ID of the split currently showing the terminal buffer
   ocprompt_bufnr = nil, -- Buffer number for the OCPrompt input buffer (opens in current window)
   port = nil, -- Port allocated for client/server
   session_id = nil, -- Currently active OpenCode session ID
@@ -22,7 +24,7 @@ local state = {
 }
 
 ---Sets the terminal buffer number
----@param bufnr number
+---@param bufnr number|nil
 function M.set_terminal_buffer(bufnr)
   state.terminal_bufnr = bufnr
 end
@@ -31,6 +33,18 @@ end
 ---@return number|nil
 function M.get_terminal_buffer()
   return state.terminal_bufnr
+end
+
+---Sets the terminal window ID
+---@param winid number|nil
+function M.set_terminal_win(winid)
+  state.terminal_winid = winid
+end
+
+---Gets the terminal window ID
+---@return number|nil
+function M.get_terminal_win()
+  return state.terminal_winid
 end
 
 ---Sets the OCPrompt buffer number
