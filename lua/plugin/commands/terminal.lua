@@ -1,5 +1,6 @@
 local state = require('plugin.state')
 local Client = require('plugin.client')
+local Sse = require('plugin.sse')
 
 ---Toggles the terminal window
 ---Creates if it doesn't exist, hides if visible, shows if hidden
@@ -52,6 +53,17 @@ local function toggle()
   state.set_terminal_buffer(new_buf)
   vim.api.nvim_set_current_win(current_win)
 
+  -- Disconnect SSE when the terminal buffer is wiped (process killed or :bdelete)
+  vim.api.nvim_create_autocmd('BufDelete', {
+    buffer = new_buf,
+    once = true,
+    callback = function()
+      Sse.disconnect()
+      state.set_terminal_buffer(nil)
+      state.set_session_id(nil)
+    end,
+  })
+
   -- Asynchronously fetch and store the latest session ID once server is ready
   vim.defer_fn(function()
     local client = Client.get_or_create_client()
@@ -69,6 +81,8 @@ local function toggle()
           client:get_latest_session_id(function(err_session, session_id)
             if not err_session and session_id then
               state.set_session_id(session_id)
+              -- Connect SSE stream now that the server is confirmed healthy
+              Sse.connect(port)
             else
               vim.schedule(function()
                 vim.notify(
