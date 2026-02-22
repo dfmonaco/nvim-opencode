@@ -6,6 +6,8 @@ local state = {
   ocprompt_bufnr = nil,
   port = nil, -- Port allocated for client/server
   session_id = nil, -- Currently active OpenCode session ID
+  ---@type table<string, any> Singleton cache of OpenCodeClient instances keyed by base_url
+  client_cache = {},
 }
 
 ---Sets the terminal buffer number
@@ -59,6 +61,19 @@ end
 ---@return string|nil
 function M.get_session_id()
   return state.session_id
+end
+
+---Gets the client cache table (keyed by base_url)
+---@return table<string, any>
+function M.get_client_cache()
+  return state.client_cache
+end
+
+---Stores a client instance in the cache under the given base_url key
+---@param base_url string Cache key (e.g. "http://127.0.0.1:4096")
+---@param client any OpenCodeClient instance
+function M.set_client_cache_entry(base_url, client)
+  state.client_cache[base_url] = client
 end
 
 return M
