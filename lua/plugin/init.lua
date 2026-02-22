@@ -1,4 +1,5 @@
 local M = {}
+local Notify = require('plugin.notify')
 
 ---@class PluginConfig
 ---@field enabled boolean
@@ -57,7 +58,7 @@ function M.setup(opts)
       end
 
       if event.type == 'session.idle' then
-        vim.notify('Agent Finished', vim.log.levels.INFO, { title = 'opencode' })
+        Notify.info('Agent Finished')
       end
     end,
   })

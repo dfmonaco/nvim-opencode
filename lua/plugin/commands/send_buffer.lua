@@ -1,5 +1,6 @@
 local state = require('plugin.state')
 local Client = require('plugin.client')
+local Notify = require('plugin.notify')
 
 ---Sends current buffer content (or visual selection) to OpenCode session
 ---@return nil
@@ -10,12 +11,12 @@ local function send()
 
   -- Validate we have required state
   if not port then
-    vim.notify('No OpenCode server port found. Please open OC terminal first.', vim.log.levels.ERROR)
+    Notify.error('No OpenCode server port found. Please open OC terminal first.')
     return
   end
 
   if not session_id then
-    vim.notify('No OpenCode session ID found. Please ensure OC terminal is running.', vim.log.levels.ERROR)
+    Notify.error('No OpenCode session ID found. Please ensure OC terminal is running.')
     return
   end
 
@@ -54,7 +55,7 @@ local function send()
   -- Check if content is empty
   local content = table.concat(lines, '\n')
   if content == '' or content:match('^%s*$') then
-    vim.notify('Buffer is empty, nothing to send.', vim.log.levels.WARN)
+    Notify.warn('Buffer is empty, nothing to send.')
     return
   end
 
@@ -72,9 +73,9 @@ local function send()
   -- Send message asynchronously
   client:send_message_async(session_id, message_parts, nil, function(err, success)
     if err then
-      vim.notify('Failed to send buffer: ' .. err, vim.log.levels.ERROR)
+      Notify.error('Failed to send buffer: ' .. err)
     elseif success then
-      vim.notify('Buffer sent to OpenCode session', vim.log.levels.INFO)
+      Notify.info('Buffer sent to OpenCode session')
     end
   end)
 end

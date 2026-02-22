@@ -11,6 +11,8 @@
 ---@field next_subscriber_id number Next subscriber ID to assign
 ---@field line_buffer string Accumulated incomplete line data from on_stdout chunks
 
+local Notify = require('plugin.notify')
+
 local M = {}
 
 ---Internal state for SSE connection
@@ -69,11 +71,7 @@ local function dispatch_event(event)
 		if sub.pattern == "*" or sub.pattern == event.type then
 			local ok, err = pcall(sub.callback, event)
 			if not ok then
-				vim.notify(
-					string.format("SSE subscriber error (pattern: %s): %s", sub.pattern, tostring(err)),
-					vim.log.levels.ERROR,
-					{ title = "opencode" }
-				)
+				Notify.error(string.format("SSE subscriber error (pattern: %s): %s", sub.pattern, tostring(err)))
 			end
 		end
 	end
@@ -113,11 +111,7 @@ local function process_chunk(chunk)
 				if ok and type(decoded) == "table" then
 					dispatch_event(decoded)
 				else
-					vim.notify(
-						string.format("SSE: failed to decode event: %s", tostring(decoded)),
-						vim.log.levels.WARN,
-						{ title = "opencode" }
-					)
+					Notify.warn(string.format("SSE: failed to decode event: %s", tostring(decoded)))
 				end
 			end
 		else
@@ -176,11 +170,7 @@ function M.connect(port)
 
 			-- Non-zero exit and not a clean SIGTERM (15) — surface to user
 			if result.code ~= 0 and result.code ~= 15 then
-				vim.notify(
-					string.format("SSE connection closed (exit %d)", result.code),
-					vim.log.levels.WARN,
-					{ title = "opencode" }
-				)
+				Notify.warn(string.format("SSE connection closed (exit %d)", result.code))
 			end
 		end)
 	)

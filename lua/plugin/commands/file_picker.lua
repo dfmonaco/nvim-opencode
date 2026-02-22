@@ -1,4 +1,5 @@
 ---@module 'plugin.commands.file_picker'
+local Notify = require('plugin.notify')
 local M = {}
 
 ---Gets git root directory for current buffer
@@ -77,7 +78,7 @@ function M.show()
     -- Get git tracked files
     get_git_files(git_root, function(files)
       if not files or #files == 0 then
-        vim.notify('No git tracked files found', vim.log.levels.WARN)
+        Notify.warn('No git tracked files found')
         return
       end
       
