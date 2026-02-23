@@ -258,6 +258,12 @@ local function toggle()
     callback = cleanup_terminal,
   })
 
+  -- Enter insert mode on any left-click
+  vim.keymap.set('n', '<LeftMouse>', '<LeftMouse><cmd>startinsert<cr>', {
+    buffer = new_buf,
+    desc = 'Enter insert mode on mouse click in terminal',
+  })
+
   vim.api.nvim_set_current_win(origin_win)
 
   vim.defer_fn(function()
