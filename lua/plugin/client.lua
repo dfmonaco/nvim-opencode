@@ -267,31 +267,13 @@ function Client:send_message_async(session_id, message_parts, opts, callback)
 	end)
 end
 
----@alias TuiCommandName
----| "session.list"
----| "session.new"
----| "session.share"
----| "session.interrupt"
----| "session.compact"
----| "session.page.up"
----| "session.page.down"
----| "session.line.up"
----| "session.line.down"
----| "session.half.page.up"
----| "session.half.page.down"
----| "session.first"
----| "session.last"
----| "prompt.clear"
----| "prompt.submit"
----| "agent.cycle"
-
 ---Publish a typed event to the TUI via POST /tui/publish.
----All TUI interactions (append prompt, execute command) share this transport.
----@param event_type string Event type string (e.g. "tui.prompt.append")
+---This is the single transport for all TUI interactions.
+---@param event_type string Event type string (e.g. "tui.prompt.append", "tui.command.execute")
 ---@param properties table Event-specific payload
 ---@param callback fun(err: string|nil, success: boolean|nil)
 ---@return nil
-local function tui_publish(self, event_type, properties, callback)
+function Client:tui_publish(event_type, properties, callback)
 	local ok, body_json = pcall(vim.json.encode, { type = event_type, properties = properties })
 	if not ok then
 		callback("Failed to encode request body: " .. tostring(body_json), nil)
@@ -314,30 +296,6 @@ local function tui_publish(self, event_type, properties, callback)
 
 		callback(nil, true)
 	end)
-end
-
----Append text to the TUI prompt input box.
----The text is inserted into the active prompt; the user can review and submit manually.
----@param text string Text to append to the TUI prompt
----@param callback fun(err: string|nil, success: boolean|nil)
----@return nil
-function Client:tui_append_prompt(text, callback)
-	tui_publish(self, "tui.prompt.append", { text = text }, callback)
-end
-
----Submit the current TUI prompt (equivalent to pressing Enter in the TUI).
----@param callback fun(err: string|nil, success: boolean|nil)
----@return nil
-function Client:tui_submit_prompt(callback)
-	tui_publish(self, "tui.command.execute", { command = "prompt.submit" }, callback)
-end
-
----Execute a named TUI command (e.g. session.new, session.interrupt, agent.cycle).
----@param command TuiCommandName Named TUI command to execute
----@param callback fun(err: string|nil, success: boolean|nil)
----@return nil
-function Client:tui_execute_command(command, callback)
-	tui_publish(self, "tui.command.execute", { command = command }, callback)
 end
 
 ---Checks if a port is available by attempting to connect to it.

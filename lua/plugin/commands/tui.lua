@@ -5,16 +5,41 @@ local Content = require("plugin.util.content")
 
 local M = {}
 
----Append the current buffer or visual selection to the TUI prompt.
----The TUI prompt is pre-filled; the user submits manually from the TUI.
----Requires the OpenCode TUI to be running (port must be set in state).
----@return nil
-function M.append()
+---@alias TuiCommandName
+---| "session.list"
+---| "session.new"
+---| "session.share"
+---| "session.interrupt"
+---| "session.compact"
+---| "session.page.up"
+---| "session.page.down"
+---| "session.line.up"
+---| "session.line.down"
+---| "session.half.page.up"
+---| "session.half.page.down"
+---| "session.first"
+---| "session.last"
+---| "prompt.clear"
+---| "prompt.submit"
+---| "agent.cycle"
+
+---Return a ready-to-use HTTP client, or notify and return nil if no server port is set.
+---@return OpenCodeClient|nil
+local function get_client()
 	local port = State.get_port()
 	if not port then
 		Notify.error("No OpenCode server port found. Please open OC terminal first.")
-		return
+		return nil
 	end
+	return Client.get_or_create_client(port)
+end
+
+---Append the current buffer or visual selection to the TUI prompt.
+---The TUI prompt is pre-filled; the user submits manually from the TUI.
+---@return nil
+function M.append()
+	local client = get_client()
+	if not client then return end
 
 	local content, err = Content.get_content()
 	if not content then
@@ -22,8 +47,7 @@ function M.append()
 		return
 	end
 
-	local client = Client.get_or_create_client(port)
-	client:tui_append_prompt(content, function(req_err, success)
+	client:tui_publish("tui.prompt.append", { text = content }, function(req_err, success)
 		if req_err then
 			Notify.error("Failed to append to TUI prompt: " .. req_err)
 		elseif success then
@@ -34,14 +58,10 @@ end
 
 ---Append the current buffer or visual selection to the TUI prompt and immediately submit it.
 ---Equivalent to appending text then pressing Enter in the TUI.
----Requires the OpenCode TUI to be running (port must be set in state).
 ---@return nil
 function M.append_and_submit()
-	local port = State.get_port()
-	if not port then
-		Notify.error("No OpenCode server port found. Please open OC terminal first.")
-		return
-	end
+	local client = get_client()
+	if not client then return end
 
 	local content, err = Content.get_content()
 	if not content then
@@ -49,8 +69,7 @@ function M.append_and_submit()
 		return
 	end
 
-	local client = Client.get_or_create_client(port)
-	client:tui_append_prompt(content, function(append_err, success)
+	client:tui_publish("tui.prompt.append", { text = content }, function(append_err, success)
 		if append_err then
 			Notify.error("Failed to append to TUI prompt: " .. append_err)
 			return
@@ -61,7 +80,7 @@ function M.append_and_submit()
 			return
 		end
 
-		client:tui_submit_prompt(function(submit_err, submitted)
+		client:tui_publish("tui.command.execute", { command = "prompt.submit" }, function(submit_err, submitted)
 			if submit_err then
 				Notify.error("Failed to submit TUI prompt: " .. submit_err)
 			elseif submitted then
@@ -71,9 +90,21 @@ function M.append_and_submit()
 	end)
 end
 
+---Interrupt the current AI run in the TUI.
+---@return nil
+function M.interrupt()
+	M.execute("session.interrupt")
+end
+
+---Start a new session in the TUI.
+---@return nil
+function M.new_session()
+	M.execute("session.new")
+end
+
 ---Execute a named TUI command (e.g. "session.interrupt", "session.new", "agent.cycle").
----Requires the OpenCode TUI to be running (port must be set in state).
----@param command string TUI command name (see TuiCommandName type in client.lua)
+---This is the generic escape hatch; prefer named actions (interrupt, new_session) for known commands.
+---@param command TuiCommandName|string TUI command name
 ---@return nil
 function M.execute(command)
 	if not command or command == "" then
@@ -81,14 +112,10 @@ function M.execute(command)
 		return
 	end
 
-	local port = State.get_port()
-	if not port then
-		Notify.error("No OpenCode server port found. Please open OC terminal first.")
-		return
-	end
+	local client = get_client()
+	if not client then return end
 
-	local client = Client.get_or_create_client(port)
-	client:tui_execute_command(command, function(req_err, success)
+	client:tui_publish("tui.command.execute", { command = command }, function(req_err, success)
 		if req_err then
 			Notify.error("Failed to execute TUI command '" .. command .. "': " .. req_err)
 		elseif success then

@@ -41,14 +41,14 @@ function M.setup(opts)
   })
 
   -- Interrupt the current AI run
-  vim.keymap.set('n', '<leader>Oi', '<cmd>OCTuiCmd session.interrupt<cr>', {
+  vim.keymap.set('n', '<leader>Oi', '<cmd>OCInterrupt<cr>', {
     desc = 'Interrupt the current OpenCode AI run',
     noremap = true,
     silent = true,
   })
 
   -- Start a new session
-  vim.keymap.set('n', '<leader>On', '<cmd>OCTuiCmd session.new<cr>', {
+  vim.keymap.set('n', '<leader>On', '<cmd>OCNewSession<cr>', {
     desc = 'Start a new OpenCode session',
     noremap = true,
     silent = true,

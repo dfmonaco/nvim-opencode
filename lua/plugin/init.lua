@@ -33,10 +33,15 @@ function M.setup(opts)
     require('plugin.commands.tui').append_and_submit()
   end, { desc = 'Append current buffer or visual selection to TUI prompt and submit', range = true })
 
-  -- Register OCTuiCmd command (generic TUI command executor)
-  vim.api.nvim_create_user_command('OCTuiCmd', function(cmd_opts)
-    require('plugin.commands.tui').execute(cmd_opts.args)
-  end, { desc = 'Execute a named TUI command (e.g. session.interrupt, session.new)', nargs = 1 })
+  -- Register OCInterrupt command
+  vim.api.nvim_create_user_command('OCInterrupt', function()
+    require('plugin.commands.tui').interrupt()
+  end, { desc = 'Interrupt the current OpenCode AI run' })
+
+  -- Register OCNewSession command
+  vim.api.nvim_create_user_command('OCNewSession', function()
+    require('plugin.commands.tui').new_session()
+  end, { desc = 'Start a new OpenCode session' })
 
   require('plugin.keymaps').setup(opts)
   require('plugin.autocmds').setup(opts)
