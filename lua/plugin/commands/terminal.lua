@@ -3,20 +3,11 @@ local Client = require('plugin.client')
 local Sse = require('plugin.sse')
 local Notify = require('plugin.notify')
 
----Applies window-local options to a terminal window and stores its ID in state.
----Must be called every time a new window is created or re-used for the terminal,
----because window-local options are lost when the window is destroyed.
----@param win number Window ID
-local function apply_win_opts(win)
-  vim.api.nvim_set_option_value('winfixbuf', true, { scope = 'local', win = win })
-  state.set_terminal_win(win)
-end
-
 ---Registers a global BufWinEnter autocmd that prevents any buffer other than the
 ---terminal buffer from being displayed in the terminal window.
 ---If an intruding buffer lands in the terminal window (e.g. from a file picker,
----file explorer, or :e command), it is redirected to the previous window and the
----terminal buffer is restored.
+---file explorer, or :e command), it is redirected to the first non-terminal window
+---and the terminal buffer is restored.
 ---This autocmd is registered once at terminal creation and lives for the lifetime
 ---of the terminal buffer (cleaned up via the BufDelete autocmd).
 ---@param buf number Terminal buffer number
@@ -24,28 +15,49 @@ local function setup_buf_guard(buf)
   vim.api.nvim_create_autocmd('BufWinEnter', {
     desc = 'Prevent non-terminal buffers from opening in the opencode terminal window',
     callback = function(ev)
-      local term_win = state.get_terminal_win()
-      -- No terminal window visible, nothing to protect
-      if term_win == nil or not vim.api.nvim_win_is_valid(term_win) then
-        return
-      end
-      -- Only act if the event fired in the terminal window
-      if vim.api.nvim_get_current_win() ~= term_win then
-        return
-      end
       -- The terminal buffer itself entered — that's expected, do nothing
       if ev.buf == buf then
         return
       end
-      -- An intruder landed in the terminal window.
-      -- Restore the terminal buffer here and redirect the intruder to the
-      -- previous window (the last non-terminal window the user was in).
-      local prev_win = vim.fn.win_getid(vim.fn.winnr('#'))
-      vim.api.nvim_win_set_buf(term_win, buf)
-      if prev_win ~= 0 and prev_win ~= term_win and vim.api.nvim_win_is_valid(prev_win) then
-        vim.api.nvim_win_set_buf(prev_win, ev.buf)
-        vim.api.nvim_set_current_win(prev_win)
+      -- Check all windows currently showing the intruder buffer.
+      -- If any of them is tagged as the terminal window, an intrusion occurred.
+      local intruder_term_win = nil
+      for _, win in ipairs(vim.fn.win_findbuf(ev.buf)) do
+        if vim.w[win].is_opencode_terminal then
+          intruder_term_win = win
+          break
+        end
       end
+      if not intruder_term_win then
+        return
+      end
+      -- An intruder landed in the terminal window.
+      -- Defer the swap to avoid re-entrancy issues during BufWinEnter.
+      -- Restore the terminal buffer and redirect the intruder to the
+      -- first available non-terminal window.
+      local intruder_buf = ev.buf
+      local term_win = intruder_term_win
+      vim.schedule(function()
+        -- Restore terminal buffer in terminal window
+        if vim.api.nvim_win_is_valid(term_win) and vim.api.nvim_buf_is_valid(buf) then
+          vim.api.nvim_win_set_buf(term_win, buf)
+        end
+        -- Find first non-terminal window to redirect the intruder to
+        local target_win = nil
+        for _, w in ipairs(vim.api.nvim_list_wins()) do
+          if not vim.w[w].is_opencode_terminal and vim.api.nvim_win_is_valid(w) then
+            target_win = w
+            break
+          end
+        end
+        if target_win and vim.api.nvim_buf_is_valid(intruder_buf) then
+          vim.api.nvim_win_set_buf(target_win, intruder_buf)
+        end
+        -- Redirect focus if it ended up on the terminal window
+        if vim.api.nvim_get_current_win() == term_win and target_win and vim.api.nvim_win_is_valid(target_win) then
+          vim.api.nvim_set_current_win(target_win)
+        end
+      end)
     end,
   })
 end
@@ -102,7 +114,8 @@ local function toggle()
     vim.cmd('vsplit')
     local new_win = vim.api.nvim_get_current_win()
     vim.api.nvim_win_set_buf(new_win, buf)
-    apply_win_opts(new_win)
+    state.set_terminal_win(new_win)
+    vim.w[new_win].is_opencode_terminal = true
     vim.api.nvim_set_current_win(current_win)
     return
   end
@@ -124,7 +137,8 @@ local function toggle()
   state.set_terminal_buffer(new_buf)
   state.set_port(port)
 
-  apply_win_opts(new_win)
+  state.set_terminal_win(new_win)
+  vim.w[new_win].is_opencode_terminal = true
   setup_buf_guard(new_buf)
 
   vim.api.nvim_set_current_win(current_win)
