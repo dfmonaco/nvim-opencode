@@ -468,7 +468,7 @@ T["TUI keymaps"]["<leader>Oi keymap triggers session.interrupt command"] = funct
 	child.stop()
 end
 
-T["TUI keymaps"]["<leader>On keymap triggers session.new command"] = function()
+T["TUI keymaps"]["<leader>On keymap triggers new session creation"] = function()
 	local child = MiniTest.new_child_neovim()
 	child.restart({ "-u", "scripts/minimal_init.lua" })
 
@@ -478,10 +478,11 @@ T["TUI keymaps"]["<leader>On keymap triggers session.new command"] = function()
 	child.lua([[
 		_G.new_triggered = false
 		local Client = require('plugin.client')
-		function Client:tui_execute_command(command, callback)
-			if command == 'session.new' then
-				_G.new_triggered = true
-			end
+		function Client:create_session(callback)
+			_G.new_triggered = true
+			callback(nil, { id = 'ses_test123', title = 'Test Session' })
+		end
+		function Client:tui_publish(event_type, properties, callback)
 			callback(nil, true)
 		end
 	]])

@@ -123,9 +123,31 @@ function M.interrupt()
 end
 
 ---Start a new session in the TUI.
+---Creates a session via POST /session (which publishes session.created on the Bus so our SSE
+---listener can track the new session ID), then navigates the TUI to the new session via
+---tui.session.select. Sending tui.command.execute "session.new" is intentionally NOT used here
+---because it only navigates the TUI to a blank home state without creating a session.
 ---@return nil
 function M.new_session()
-	M.execute("session.new")
+	local client = get_client()
+	if not client then return end
+
+	client:create_session(function(err, session)
+		if err then
+			Notify.error("Failed to create session: " .. err)
+			return
+		end
+		if not session or not session.id then
+			Notify.error("Create session returned no ID")
+			return
+		end
+		-- Navigate the TUI to the newly created session
+		client:tui_publish("tui.session.select", { sessionID = session.id }, function(nav_err, _)
+			if nav_err then
+				Notify.warn("Session created but TUI navigation failed: " .. nav_err)
+			end
+		end)
+	end)
 end
 
 return M
