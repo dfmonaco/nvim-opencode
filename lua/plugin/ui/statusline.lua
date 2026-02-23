@@ -1,6 +1,7 @@
 local M = {}
 
----Returns a statusline component string showing the active OpenCode server port.
+---Returns a statusline component string showing the active OpenCode server port
+---and session ID (first 12 chars).
 ---Returns an empty string when no server is connected.
 ---
 ---Usage in a plain statusline:
@@ -15,11 +16,15 @@ local M = {}
 ---
 ---@return string
 function M.get_component()
-  local port = require('plugin.state').get_port()
-  if port then
-    return '[OC:' .. tostring(port) .. ']'
+  local state = require('plugin.state')
+  local port = state.get_port()
+  if not port then
+    return ''
   end
-  return ''
+
+  local session_id = state.get_session_id()
+  local session_str = session_id and (' ' .. session_id:sub(1, 12)) or ' no-session'
+  return '[OC:' .. tostring(port) .. session_str .. ']'
 end
 
 return M
