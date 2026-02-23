@@ -82,6 +82,34 @@ function M.setup(opts)
     silent = true,
   })
 
+  -- Add current file reference to OCPrompt (normal mode)
+  vim.keymap.set('n', '<leader>oca', '<cmd>OCContextFile<cr>', {
+    desc = 'Append current file reference to OCPrompt',
+    noremap = true,
+    silent = true,
+  })
+
+  -- Add visual selection reference to OCPrompt (visual mode)
+  vim.keymap.set('v', '<leader>oca', '<Esc><cmd>OCContextVisual<cr>', {
+    desc = 'Append current file + visual selection range to OCPrompt',
+    noremap = true,
+    silent = true,
+  })
+
+  -- Add current buffer diagnostics to OCPrompt
+  vim.keymap.set('n', '<leader>ocd', '<cmd>OCContextDiagnostics<cr>', {
+    desc = 'Append current buffer diagnostics to OCPrompt',
+    noremap = true,
+    silent = true,
+  })
+
+  -- Add all open buffer references to OCPrompt
+  vim.keymap.set('n', '<leader>ocb', '<cmd>OCContextBuffers<cr>', {
+    desc = 'Append all open buffer references to OCPrompt',
+    noremap = true,
+    silent = true,
+  })
+
 end
 
 return M

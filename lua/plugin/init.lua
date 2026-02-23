@@ -63,6 +63,26 @@ function M.setup(opts)
     require('plugin.commands.tui').execute('agent.cycle')
   end, { desc = 'Cycle to the next OpenCode agent' })
 
+  -- Register OCContextFile command
+  vim.api.nvim_create_user_command('OCContextFile', function()
+    require('plugin.commands.context').add_file()
+  end, { desc = 'Append current buffer reference to OCPrompt' })
+
+  -- Register OCContextVisual command
+  vim.api.nvim_create_user_command('OCContextVisual', function()
+    require('plugin.commands.context').add_visual()
+  end, { desc = 'Append current buffer + visual selection line range to OCPrompt', range = true })
+
+  -- Register OCContextDiagnostics command
+  vim.api.nvim_create_user_command('OCContextDiagnostics', function()
+    require('plugin.commands.context').add_diagnostics()
+  end, { desc = 'Append current buffer diagnostics to OCPrompt' })
+
+  -- Register OCContextBuffers command
+  vim.api.nvim_create_user_command('OCContextBuffers', function()
+    require('plugin.commands.context').add_buffers()
+  end, { desc = 'Append all open buffer references to OCPrompt' })
+
   -- Register OCDebugState command
   vim.api.nvim_create_user_command('OCDebugState', function()
     require('plugin.commands.debug').paste_state()
