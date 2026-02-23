@@ -245,13 +245,13 @@ end
 T["Sse"]["connect()"]["is a no-op when already connected to same port"] = function()
 	child.lua([[
     _G.Sse.connect(19901)
-    -- Capture the process handle identity before second call
-    _G.first_process = _G.Sse.get_state().process
+    -- Capture the job_id before second call
+    _G.first_job_id = _G.Sse.get_state().job_id
     _G.Sse.connect(19901)  -- same port — should be no-op
-    _G.second_process = _G.Sse.get_state().process
+    _G.second_job_id = _G.Sse.get_state().job_id
   ]])
-	-- Both references should be the same object (no reconnect happened)
-	local same = child.lua_get([[_G.first_process == _G.second_process]])
+	-- Both job IDs should be identical (no reconnect happened)
+	local same = child.lua_get([[_G.first_job_id == _G.second_job_id]])
 	MiniTest.expect.equality(same, true)
 end
 
@@ -271,9 +271,9 @@ T["Sse"]["disconnect()"]["clears process handle"] = function()
     _G.Sse.connect(19903)
     _G.Sse.disconnect()
   ]])
-	-- process should be nil; lua_get returns vim.NIL for nil across RPC
-	local process = child.lua_get([[_G.Sse.get_state().process]])
-	MiniTest.expect.equality(process, vim.NIL)
+	-- job_id should be nil; lua_get returns vim.NIL for nil across RPC
+	local job_id = child.lua_get([[_G.Sse.get_state().job_id]])
+	MiniTest.expect.equality(job_id, vim.NIL)
 end
 
 T["Sse"]["disconnect()"]["is safe to call when not connected"] = function()

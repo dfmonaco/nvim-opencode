@@ -5,7 +5,8 @@
 
 ---@class SseState
 ---@field port number|nil Current server port
----@field process vim.SystemObj|nil Process handle returned by vim.system() — supports :kill()
+---@field directory string|nil Project root directory used to scope the SSE subscription
+---@field job_id number|nil Job ID returned by vim.fn.jobstart()
 ---@field subscribers SseSubscriber[] Registered event subscribers
 ---@field connected boolean Whether currently connected
 ---@field next_subscriber_id number Next subscriber ID to assign
@@ -19,7 +20,8 @@ local M = {}
 ---@type SseState
 local state = {
 	port = nil,
-	process = nil,
+	directory = nil,
+	job_id = nil,
 	subscribers = {},
 	connected = false,
 	next_subscriber_id = 1,
@@ -129,11 +131,12 @@ end
 -- Connection Management
 -- ============================================================================
 
----Connect to the OpenCode server SSE event stream at GET /event.
+---Connect to the OpenCode server SSE event stream at GET /event?directory=<dir>.
+---Reads the project root from plugin state (set after GET /path succeeds).
 ---No-op if already connected to the same port.
 ---@param port number OpenCode server port
 function M.connect(port)
-	if state.connected and state.port == port and state.process then
+	if state.connected and state.port == port and state.job_id then
 		return
 	end
 
@@ -142,48 +145,63 @@ function M.connect(port)
 		M.disconnect()
 	end
 
+	local directory = require('plugin.state').get_project_root()
+	local encoded_dir = directory and vim.uri_encode(directory) or ''
+	local url = string.format("http://127.0.0.1:%d/event?directory=%s", port, encoded_dir)
+
 	state.port = port
+	state.directory = directory
 	state.connected = true
 	state.line_buffer = ""
 
-	local url = string.format("http://127.0.0.1:%d/event", port)
-
-	state.process = vim.system(
+	-- Use vim.fn.jobstart (not vim.system) for SSE streaming.
+	-- vim.system has been observed to drop rapid SSE events; jobstart with
+	-- on_stdout delivers each chunk reliably as it arrives.
+	local stderr_lines = {}
+	state.job_id = vim.fn.jobstart(
 		{ "curl", "-s", "-N", "-H", "Accept: text/event-stream", url },
 		{
-			-- Pass stdout as a function to get streaming chunks (pipe mode).
-			-- Using text=true would buffer all output until process exit,
-			-- which defeats the purpose of SSE streaming.
-			stdout = function(err, data)
+			on_stdout = vim.schedule_wrap(function(_, data)
+				if not data then
+					return
+				end
+				-- jobstart delivers stdout as a list of lines (already split on \n).
+				-- Re-join with \n so process_chunk can handle line buffering uniformly.
+				local chunk = table.concat(data, "\n")
+				process_chunk(chunk)
+			end),
+			on_stderr = function(_, data)
 				if data then
-					vim.schedule(function()
-						process_chunk(data)
-					end)
+					for _, line in ipairs(data) do
+						if line ~= "" then
+							table.insert(stderr_lines, line)
+						end
+					end
 				end
 			end,
-		},
-		-- on_exit: called when the curl process terminates
-		vim.schedule_wrap(function(result)
-			state.connected = false
-			state.process = nil
-			state.line_buffer = ""
+			on_exit = vim.schedule_wrap(function(_, code)
+				state.connected = false
+				state.job_id = nil
+				state.line_buffer = ""
 
-			-- Non-zero exit and not a clean SIGTERM (15) — surface to user
-			if result.code ~= 0 and result.code ~= 15 then
-				Notify.warn(string.format("SSE connection closed (exit %d)", result.code))
-			end
-		end)
+				-- 143 = SIGTERM (intentional disconnect via jobstop)
+				if code ~= 0 and code ~= 143 then
+					Notify.warn(string.format("SSE connection closed (exit %d)", code))
+				end
+			end),
+		}
 	)
 end
 
 ---Disconnect from the SSE stream and clear all connection state.
 function M.disconnect()
-	if state.process then
-		state.process:kill(15) -- SIGTERM
-		state.process = nil
+	if state.job_id then
+		vim.fn.jobstop(state.job_id)
+		state.job_id = nil
 	end
 
 	state.port = nil
+	state.directory = nil
 	state.connected = false
 	state.line_buffer = ""
 end
@@ -197,7 +215,8 @@ end
 function M.get_state()
 	return {
 		port = state.port,
-		process = state.process,
+		directory = state.directory,
+		job_id = state.job_id,
 		subscribers = vim.deepcopy(state.subscribers),
 		connected = state.connected,
 		next_subscriber_id = state.next_subscriber_id,
