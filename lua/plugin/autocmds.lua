@@ -1,6 +1,7 @@
 local M = {}
 
 local Notify = require('plugin.notify')
+local State = require('plugin.state')
 
 ---Register all plugin autocommands
 ---@param opts? PluginConfig
@@ -21,6 +22,13 @@ function M.setup(opts)
 
       if event.type == 'session.idle' then
         Notify.info('Agent Finished')
+      end
+
+      if event.type == 'session.created' then
+        local info = event.properties and event.properties.info
+        if info and info.id then
+          State.set_session_id(info.id)
+        end
       end
     end,
   })
