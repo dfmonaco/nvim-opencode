@@ -45,6 +45,49 @@ function M.setup(opts)
     silent = true,
   })
 
+  -- Register OCTuiAppend command
+  vim.api.nvim_create_user_command('OCTuiAppend', function()
+    require('plugin.commands.tui').append()
+  end, { desc = 'Append current buffer or visual selection to the TUI prompt', range = true })
+
+  -- Map <leader>Oa to execute :OCTuiAppend (normal and visual modes)
+  vim.keymap.set({ 'n', 'v' }, '<leader>Oa', '<cmd>OCTuiAppend<cr>', {
+    desc = 'Append current buffer or visual selection to the TUI prompt',
+    noremap = true,
+    silent = true,
+  })
+
+  -- Register OCTuiSend command (append + auto-submit)
+  vim.api.nvim_create_user_command('OCTuiSend', function()
+    require('plugin.commands.tui').append_and_submit()
+  end, { desc = 'Append current buffer or visual selection to TUI prompt and submit', range = true })
+
+  -- Map <leader>OS to execute :OCTuiSend (normal and visual modes)
+  vim.keymap.set({ 'n', 'v' }, '<leader>OS', '<cmd>OCTuiSend<cr>', {
+    desc = 'Append current buffer or visual selection to TUI prompt and submit',
+    noremap = true,
+    silent = true,
+  })
+
+  -- Register OCTuiCmd command (generic TUI command executor)
+  vim.api.nvim_create_user_command('OCTuiCmd', function(cmd_opts)
+    require('plugin.commands.tui').execute(cmd_opts.args)
+  end, { desc = 'Execute a named TUI command (e.g. session.interrupt, session.new)', nargs = 1 })
+
+  -- Map <leader>Oi to session.interrupt as a convenience shortcut
+  vim.keymap.set('n', '<leader>Oi', '<cmd>OCTuiCmd session.interrupt<cr>', {
+    desc = 'Interrupt the current OpenCode AI run',
+    noremap = true,
+    silent = true,
+  })
+
+  -- Map <leader>On to session.new as a convenience shortcut
+  vim.keymap.set('n', '<leader>On', '<cmd>OCTuiCmd session.new<cr>', {
+    desc = 'Start a new OpenCode session',
+    noremap = true,
+    silent = true,
+  })
+
   -- React to OpenCode server-sent events via the User OpenCodeEvent autocmd.
   -- This is the central place for all event-driven notifications and side effects.
   -- Other modules and user config can register additional handlers on the same autocmd.
