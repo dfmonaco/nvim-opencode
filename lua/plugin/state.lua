@@ -19,6 +19,7 @@ local state = {
   ocprompt_bufnr = nil, -- Buffer number for the OCPrompt input buffer (opens in current window)
   port = nil, -- Port allocated for client/server
   session_id = nil, -- Currently active OpenCode session ID
+  project_root = nil, -- Absolute path of the project root (git root or cwd); fixed for the session lifetime
   ---@type table<string, any> Singleton cache of OpenCodeClient instances keyed by base_url
   client_cache = {},
 }
@@ -86,6 +87,19 @@ end
 ---@return string|nil
 function M.get_session_id()
   return state.session_id
+end
+
+---Sets the project root directory (git root or cwd fallback).
+---Fixed for the lifetime of the Neovim + OpenCode session.
+---@param dir string|nil
+function M.set_project_root(dir)
+  state.project_root = dir
+end
+
+---Gets the project root directory
+---@return string|nil
+function M.get_project_root()
+  return state.project_root
 end
 
 ---Gets the client cache table (keyed by base_url)
