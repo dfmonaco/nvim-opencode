@@ -58,8 +58,9 @@ end
 
 ---Append the current buffer or visual selection to the TUI prompt and immediately submit it.
 ---Equivalent to appending text then pressing Enter in the TUI.
+---@param on_success? fun() Optional callback invoked after successful submit
 ---@return nil
-function M.append_and_submit()
+function M.append_and_submit(on_success)
 	local client = get_client()
 	if not client then return end
 
@@ -85,6 +86,9 @@ function M.append_and_submit()
 				Notify.error("Failed to submit TUI prompt: " .. submit_err)
 			elseif submitted then
 				Notify.info("Prompt submitted to TUI")
+				if on_success then
+					on_success()
+				end
 			end
 		end)
 	end)

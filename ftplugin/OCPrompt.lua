@@ -30,10 +30,13 @@ vim.keymap.set({'n', 'i'}, '<C-x>', function()
   end
 end, { buffer = true, desc = 'Clear OCPrompt buffer' })
 
--- Buffer-local <C-CR> to send OCPrompt buffer contents (works in both Normal and Insert modes)
+-- Buffer-local <C-CR> to append OCPrompt buffer contents to TUI prompt and submit
 vim.keymap.set({'n', 'i'}, '<C-CR>', function()
-  require('plugin.commands.send_buffer').send()
-end, { buffer = true, desc = 'Send OCPrompt buffer to OpenCode session' })
+  local prompt = require('plugin.commands.prompt')
+  require('plugin.commands.tui').append_and_submit(function()
+    prompt.clear()
+  end)
+end, { buffer = true, desc = 'Send OCPrompt buffer to TUI prompt and submit' })
 
 -- File reference picker trigger: @ in insert mode
 vim.api.nvim_create_autocmd('InsertCharPre', {
