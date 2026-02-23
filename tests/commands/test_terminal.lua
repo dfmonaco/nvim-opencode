@@ -155,6 +155,7 @@ T['OC command']['launches opencode process on terminal creation'] = function()
   child.cmd('OC')
   wait_for_terminal(child)
 
+  -- Verify the terminal buffer name contains 'opencode'
   local term_buf_name = child.lua_get([[
     (function()
       for _, win in ipairs(vim.api.nvim_list_wins()) do
@@ -170,9 +171,10 @@ T['OC command']['launches opencode process on terminal creation'] = function()
   local contains_opencode = term_buf_name:match('opencode') ~= nil
   MiniTest.expect.equality(contains_opencode, true)
 
-  local port_pattern = term_buf_name:match('%-%-port%s+(%d+)')
-  local port = tonumber(port_pattern)
-  MiniTest.expect.equality(port ~= nil, true, "Port should be present in terminal command")
+  -- Verify the allocated port is stored in state and is in the correct range
+  local port = child.lua_get([[require('plugin.state').get_port()]])
+  MiniTest.expect.no_equality(port, vim.NIL, "Port should be stored in state")
+  MiniTest.expect.equality(type(port), "number", "Port should be a number")
   MiniTest.expect.equality(port >= 60000 and port <= 61000, true, "Port should be in allocated range")
 
   child.stop()

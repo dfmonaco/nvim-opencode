@@ -232,8 +232,8 @@ T['OCSend command']['keymap works in normal mode'] = function()
     end
   ]])
   
-  -- Trigger keymap - need to wait for mapping to register
-  child.lua([[vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<leader>Os', true, false, true), 'x', false)]])
+  -- Trigger keymap - <leader>om is the current OCSend keymap
+  child.lua([[vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<leader>om', true, false, true), 'x', false)]])
   
   -- Give time for the keymap to execute
   vim.uv.sleep(200)

@@ -247,25 +247,20 @@ end
 
 T["OpenCodeClient"]["allocate_port()"] = MiniTest.new_set()
 
-T["OpenCodeClient"]["allocate_port()"]["allocates port in range 60000-61000 and stores in State"] = function()
+T["OpenCodeClient"]["allocate_port()"]["allocates port in range 60000-61000"] = function()
 	local child = MiniTest.new_child_neovim()
 	child.restart({ "-u", "scripts/minimal_init.lua" })
 
 	child.lua([[
-    local State = require('plugin.state')
-    State.set_port(nil) -- Reset state
-    
     local Client = require('plugin.client')
     local port, err = Client.allocate_port()
-    
+
     _G.test_port = port
     _G.test_err = err
-    _G.state_port = State.get_port()
   ]])
 
 	local port = child.lua_get([[_G.test_port]])
 	local err = child.lua_get([[_G.test_err]])
-	local state_port = child.lua_get([[_G.state_port]])
 
 	-- Verify port is allocated with no error
 	MiniTest.expect.no_equality(port, vim.NIL, "allocate_port() should return a port")
@@ -274,9 +269,6 @@ T["OpenCodeClient"]["allocate_port()"]["allocates port in range 60000-61000 and 
 
 	-- Verify port is in correct range
 	MiniTest.expect.equality(port >= 60000 and port <= 61000, true, "Port should be in range 60000-61000")
-
-	-- Verify port is stored in State
-	MiniTest.expect.equality(state_port, port, "State should contain the same port")
 
 	child.stop()
 end

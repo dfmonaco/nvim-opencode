@@ -43,14 +43,14 @@ T["TUI commands"]["OCTuiSend is registered after setup"] = function()
 	child.stop()
 end
 
-T["TUI commands"]["OCTuiCmd is registered after setup"] = function()
+T["TUI commands"]["OCInterrupt is registered after setup"] = function()
 	local child = MiniTest.new_child_neovim()
 	child.restart({ "-u", "scripts/minimal_init.lua" })
 
 	child.lua([[require('plugin').setup()]])
 
 	local commands = child.lua_get([[vim.api.nvim_get_commands({})]])
-	MiniTest.expect.no_equality(commands["OCTuiCmd"], nil)
+	MiniTest.expect.no_equality(commands["OCInterrupt"], nil)
 
 	child.stop()
 end
@@ -101,7 +101,7 @@ T["tui.append()"]["shows warning when buffer is empty"] = function()
 	child.stop()
 end
 
-T["tui.append()"]["calls tui_append_prompt with buffer content"] = function()
+T["tui.append()"]["calls tui_publish with buffer content"] = function()
 	local child = MiniTest.new_child_neovim()
 	child.restart({ "-u", "scripts/minimal_init.lua" })
 
@@ -116,8 +116,10 @@ T["tui.append()"]["calls tui_append_prompt with buffer content"] = function()
 	child.lua([[
 		_G.captured_appends = {}
 		local Client = require('plugin.client')
-		function Client:tui_append_prompt(text, callback)
-			table.insert(_G.captured_appends, text)
+		function Client:tui_publish(event_type, properties, callback)
+			if event_type == 'tui.prompt.append' then
+				table.insert(_G.captured_appends, properties.text)
+			end
 			callback(nil, true)
 		end
 	]])
@@ -151,7 +153,7 @@ T["tui.append()"]["shows error when client request fails"] = function()
 
 	child.lua([[
 		local Client = require('plugin.client')
-		function Client:tui_append_prompt(text, callback)
+		function Client:tui_publish(event_type, properties, callback)
 			callback("connection refused", nil)
 		end
 	]])
@@ -206,17 +208,17 @@ T["tui.append_and_submit()"]["appends then submits and notifies success"] = func
 	child.cmd("enew")
 	child.lua([[vim.api.nvim_buf_set_lines(0, 0, -1, false, {'send and go'})]])
 
-	-- Mock both client methods
+	-- Mock tui_publish to track calls by event_type
 	child.lua([[
 		_G.append_called = false
 		_G.submit_called = false
 		local Client = require('plugin.client')
-		function Client:tui_append_prompt(text, callback)
-			_G.append_called = true
-			callback(nil, true)
-		end
-		function Client:tui_submit_prompt(callback)
-			_G.submit_called = true
+		function Client:tui_publish(event_type, properties, callback)
+			if event_type == 'tui.prompt.append' then
+				_G.append_called = true
+			elseif event_type == 'tui.command.execute' and properties.command == 'prompt.submit' then
+				_G.submit_called = true
+			end
 			callback(nil, true)
 		end
 	]])
@@ -252,12 +254,13 @@ T["tui.append_and_submit()"]["does not submit when append fails"] = function()
 	child.lua([[
 		_G.submit_called = false
 		local Client = require('plugin.client')
-		function Client:tui_append_prompt(text, callback)
-			callback("append failed", nil)
-		end
-		function Client:tui_submit_prompt(callback)
-			_G.submit_called = true
-			callback(nil, true)
+		function Client:tui_publish(event_type, properties, callback)
+			if event_type == 'tui.prompt.append' then
+				callback("append failed", nil)
+			elseif event_type == 'tui.command.execute' and properties.command == 'prompt.submit' then
+				_G.submit_called = true
+				callback(nil, true)
+			end
 		end
 	]])
 
@@ -317,7 +320,7 @@ T["tui.execute()"]["shows error when no command is given"] = function()
 	child.stop()
 end
 
-T["tui.execute()"]["calls tui_execute_command with the correct command name"] = function()
+T["tui.execute()"]["calls tui_publish with the correct command name"] = function()
 	local child = MiniTest.new_child_neovim()
 	child.restart({ "-u", "scripts/minimal_init.lua" })
 
@@ -328,8 +331,10 @@ T["tui.execute()"]["calls tui_execute_command with the correct command name"] = 
 	child.lua([[
 		_G.captured_commands = {}
 		local Client = require('plugin.client')
-		function Client:tui_execute_command(command, callback)
-			table.insert(_G.captured_commands, command)
+		function Client:tui_publish(event_type, properties, callback)
+			if event_type == 'tui.command.execute' then
+				table.insert(_G.captured_commands, properties.command)
+			end
 			callback(nil, true)
 		end
 	]])
@@ -361,7 +366,7 @@ T["tui.execute()"]["shows error when client request fails"] = function()
 
 	child.lua([[
 		local Client = require('plugin.client')
-		function Client:tui_execute_command(command, callback)
+		function Client:tui_publish(event_type, properties, callback)
 			callback("connection refused", nil)
 		end
 	]])
@@ -384,7 +389,7 @@ end
 
 T["TUI keymaps"] = MiniTest.new_set()
 
-T["TUI keymaps"]["<leader>Oa keymap triggers OCTuiAppend"] = function()
+T["TUI keymaps"]["<leader>opa keymap triggers OCTuiAppend"] = function()
 	local child = MiniTest.new_child_neovim()
 	child.restart({ "-u", "scripts/minimal_init.lua" })
 
@@ -397,13 +402,15 @@ T["TUI keymaps"]["<leader>Oa keymap triggers OCTuiAppend"] = function()
 	child.lua([[
 		_G.append_triggered = false
 		local Client = require('plugin.client')
-		function Client:tui_append_prompt(text, callback)
-			_G.append_triggered = true
+		function Client:tui_publish(event_type, properties, callback)
+			if event_type == 'tui.prompt.append' then
+				_G.append_triggered = true
+			end
 			callback(nil, true)
 		end
 	]])
 
-	child.lua([[vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<leader>Oa', true, false, true), 'x', false)]])
+	child.lua([[vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<leader>opa', true, false, true), 'x', false)]])
 	vim.uv.sleep(200)
 
 	local triggered = child.lua_get([[_G.append_triggered]])
@@ -412,7 +419,7 @@ T["TUI keymaps"]["<leader>Oa keymap triggers OCTuiAppend"] = function()
 	child.stop()
 end
 
-T["TUI keymaps"]["<leader>OS keymap triggers OCTuiSend"] = function()
+T["TUI keymaps"]["<leader>opm keymap triggers OCTuiSend"] = function()
 	local child = MiniTest.new_child_neovim()
 	child.restart({ "-u", "scripts/minimal_init.lua" })
 
@@ -425,14 +432,15 @@ T["TUI keymaps"]["<leader>OS keymap triggers OCTuiSend"] = function()
 	child.lua([[
 		_G.submit_triggered = false
 		local Client = require('plugin.client')
-		function Client:tui_append_prompt(text, callback) callback(nil, true) end
-		function Client:tui_submit_prompt(callback)
-			_G.submit_triggered = true
+		function Client:tui_publish(event_type, properties, callback)
+			if event_type == 'tui.command.execute' and properties.command == 'prompt.submit' then
+				_G.submit_triggered = true
+			end
 			callback(nil, true)
 		end
 	]])
 
-	child.lua([[vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<leader>OS', true, false, true), 'x', false)]])
+	child.lua([[vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<leader>opm', true, false, true), 'x', false)]])
 	vim.uv.sleep(200)
 
 	local triggered = child.lua_get([[_G.submit_triggered]])
@@ -441,7 +449,7 @@ T["TUI keymaps"]["<leader>OS keymap triggers OCTuiSend"] = function()
 	child.stop()
 end
 
-T["TUI keymaps"]["<leader>Oi keymap triggers session.interrupt command"] = function()
+T["TUI keymaps"]["<leader>osi keymap triggers session.interrupt command"] = function()
 	local child = MiniTest.new_child_neovim()
 	child.restart({ "-u", "scripts/minimal_init.lua" })
 
@@ -451,15 +459,15 @@ T["TUI keymaps"]["<leader>Oi keymap triggers session.interrupt command"] = funct
 	child.lua([[
 		_G.interrupt_triggered = false
 		local Client = require('plugin.client')
-		function Client:tui_execute_command(command, callback)
-			if command == 'session.interrupt' then
+		function Client:tui_publish(event_type, properties, callback)
+			if event_type == 'tui.command.execute' and properties.command == 'session.interrupt' then
 				_G.interrupt_triggered = true
 			end
 			callback(nil, true)
 		end
 	]])
 
-	child.lua([[vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<leader>Oi', true, false, true), 'x', false)]])
+	child.lua([[vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<leader>osi', true, false, true), 'x', false)]])
 	vim.uv.sleep(200)
 
 	local triggered = child.lua_get([[_G.interrupt_triggered]])
@@ -468,7 +476,7 @@ T["TUI keymaps"]["<leader>Oi keymap triggers session.interrupt command"] = funct
 	child.stop()
 end
 
-T["TUI keymaps"]["<leader>On keymap triggers new session creation"] = function()
+T["TUI keymaps"]["<leader>osn keymap triggers new session creation"] = function()
 	local child = MiniTest.new_child_neovim()
 	child.restart({ "-u", "scripts/minimal_init.lua" })
 
@@ -487,7 +495,7 @@ T["TUI keymaps"]["<leader>On keymap triggers new session creation"] = function()
 		end
 	]])
 
-	child.lua([[vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<leader>On', true, false, true), 'x', false)]])
+	child.lua([[vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<leader>osn', true, false, true), 'x', false)]])
 	vim.uv.sleep(200)
 
 	local triggered = child.lua_get([[_G.new_triggered]])
