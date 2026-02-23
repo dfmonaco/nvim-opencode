@@ -113,6 +113,7 @@ local function cleanup_terminal()
   state.set_terminal_win(nil)
   state.set_session_id(nil)
   state.set_port(nil)
+  state.set_project_root(nil)
   vim.schedule(function()
     vim.cmd('redrawstatus')
   end)
@@ -137,26 +138,43 @@ end
 -- ─── Server Bootstrap ─────────────────────────────────────────────────────────
 
 ---Called once the server is confirmed healthy.
----Fetches the active session ID, stores it in state, connects the SSE stream,
----and notifies the user.
+---Fetches the server's canonical directory (GET /path), stores it as the project
+---root so that the SSE ?directory= param matches the server's instance key exactly,
+---then fetches the active session ID and connects the SSE stream.
 ---@param port   number           Port the server is listening on
 ---@param client OpenCodeClient   Already-created client instance
 local function on_server_ready(port, client)
   Notify.info('Connected to OpenCode Server at port ' .. tostring(port))
 
-  client:get_latest_session_id(function(err, session_id)
-    if err or not session_id then
+  -- Step 1: get the server's canonical directory — this is the exact instance key
+  -- the server uses, so the SSE ?directory= param will always match.
+  client:get_path(function(path_err, path_info)
+    if path_err or not path_info or not path_info.directory then
       vim.schedule(function()
-        Notify.warn('Failed to fetch session ID: ' .. (err or 'unknown error'))
+        Notify.warn('Failed to fetch server path: ' .. (path_err or 'unknown error'))
       end)
       return
     end
 
-    state.set_session_id(session_id)
-    Sse.connect(port)
-    vim.schedule(function()
-      Notify.info('Session ID: ' .. session_id)
-      vim.cmd('redrawstatus')
+    state.set_project_root(path_info.directory)
+
+    -- Step 2: fetch the current session ID
+    client:get_latest_session_id(function(err, session_id)
+      if err or not session_id then
+        vim.schedule(function()
+          Notify.warn('Failed to fetch session ID: ' .. (err or 'unknown error'))
+        end)
+        return
+      end
+
+      state.set_session_id(session_id)
+
+      -- Step 3: connect SSE — project_root is now set to the canonical value
+      Sse.connect(port)
+      vim.schedule(function()
+        Notify.info('Session ID: ' .. session_id)
+        vim.cmd('redrawstatus')
+      end)
     end)
   end)
 end
