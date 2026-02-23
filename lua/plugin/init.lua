@@ -63,6 +63,11 @@ function M.setup(opts)
     require('plugin.commands.tui').execute('agent.cycle')
   end, { desc = 'Cycle to the next OpenCode agent' })
 
+  -- Register OCDebugState command
+  vim.api.nvim_create_user_command('OCDebugState', function()
+    require('plugin.commands.debug').paste_state()
+  end, { desc = 'Paste plugin + SSE state snapshot into current buffer for debugging' })
+
   require('plugin.keymaps').setup(opts)
   require('plugin.autocmds').setup(opts)
 end
