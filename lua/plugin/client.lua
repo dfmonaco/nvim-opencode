@@ -285,16 +285,14 @@ end
 ---| "prompt.submit"
 ---| "agent.cycle"
 
----Append text to the TUI prompt input box.
----The text is inserted into the active prompt; the user can review and submit manually.
----@param text string Text to append to the TUI prompt
+---Publish a typed event to the TUI via POST /tui/publish.
+---All TUI interactions (append prompt, execute command) share this transport.
+---@param event_type string Event type string (e.g. "tui.prompt.append")
+---@param properties table Event-specific payload
 ---@param callback fun(err: string|nil, success: boolean|nil)
 ---@return nil
-function Client:tui_append_prompt(text, callback)
-	local ok, body_json = pcall(vim.json.encode, {
-		type = "tui.prompt.append",
-		properties = { text = text },
-	})
+local function tui_publish(self, event_type, properties, callback)
+	local ok, body_json = pcall(vim.json.encode, { type = event_type, properties = properties })
 	if not ok then
 		callback("Failed to encode request body: " .. tostring(body_json), nil)
 		return
@@ -310,7 +308,7 @@ function Client:tui_append_prompt(text, callback)
 		end
 
 		if not response or response.status ~= 200 then
-			callback("TUI append-prompt failed with status: " .. (response and response.status or "unknown"), nil)
+			callback("TUI publish failed with status: " .. (response and response.status or "unknown"), nil)
 			return
 		end
 
@@ -318,12 +316,20 @@ function Client:tui_append_prompt(text, callback)
 	end)
 end
 
+---Append text to the TUI prompt input box.
+---The text is inserted into the active prompt; the user can review and submit manually.
+---@param text string Text to append to the TUI prompt
+---@param callback fun(err: string|nil, success: boolean|nil)
+---@return nil
+function Client:tui_append_prompt(text, callback)
+	tui_publish(self, "tui.prompt.append", { text = text }, callback)
+end
+
 ---Submit the current TUI prompt (equivalent to pressing Enter in the TUI).
----Delegates to tui_execute_command with "prompt.submit".
 ---@param callback fun(err: string|nil, success: boolean|nil)
 ---@return nil
 function Client:tui_submit_prompt(callback)
-	self:tui_execute_command("prompt.submit", callback)
+	tui_publish(self, "tui.command.execute", { command = "prompt.submit" }, callback)
 end
 
 ---Execute a named TUI command (e.g. session.new, session.interrupt, agent.cycle).
@@ -331,31 +337,7 @@ end
 ---@param callback fun(err: string|nil, success: boolean|nil)
 ---@return nil
 function Client:tui_execute_command(command, callback)
-	local ok, body_json = pcall(vim.json.encode, {
-		type = "tui.command.execute",
-		properties = { command = command },
-	})
-	if not ok then
-		callback("Failed to encode request body: " .. tostring(body_json), nil)
-		return
-	end
-
-	self:request("POST", "/tui/publish", {
-		body = body_json,
-		headers = { ["Content-Type"] = "application/json" },
-	}, function(err, response)
-		if err then
-			callback(err, nil)
-			return
-		end
-
-		if not response or response.status ~= 200 then
-			callback("TUI execute-command failed with status: " .. (response and response.status or "unknown"), nil)
-			return
-		end
-
-		callback(nil, true)
-	end)
+	tui_publish(self, "tui.command.execute", { command = command }, callback)
 end
 
 ---Checks if a port is available by attempting to connect to it.
