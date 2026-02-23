@@ -11,7 +11,6 @@ local function open()
     if vim.api.nvim_get_current_buf() ~= buf then
       vim.api.nvim_win_set_buf(0, buf)
     end
-    vim.cmd('startinsert')
     return buf
   end
 
@@ -38,7 +37,6 @@ local function open()
     end,
   })
 
-  vim.cmd('startinsert')
   return oc_prompt_buf
 end
 
