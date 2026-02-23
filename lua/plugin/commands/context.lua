@@ -2,6 +2,9 @@
 ---Commands for appending context references to the OCPrompt buffer.
 ---All functions append to the end of the OCPrompt buffer, separated from
 ---existing content by a blank line.
+---File references use the './' prefix (e.g. './lua/plugin/init.lua') rather
+---than '@' to avoid triggering the TUI autocomplete which intercepts '@' tokens
+---and blocks prompt submission.
 
 local Notify = require('plugin.notify')
 local State = require('plugin.state')
@@ -80,7 +83,7 @@ end
 -- ============================================================================
 
 ---Append a reference to the current buffer to the OCPrompt buffer.
----Format: @relative/path/to/file
+---Format: ./relative/path/to/file
 ---@return nil
 function M.add_file()
   local bufnr = vim.api.nvim_get_current_buf()
@@ -90,13 +93,13 @@ function M.add_file()
     return
   end
 
-  append_to_prompt({ '@' .. rel })
-  Notify.info('Added file reference: @' .. rel)
+  append_to_prompt({ './' .. rel })
+  Notify.info('Added file reference: ./' .. rel)
 end
 
 ---Append a reference to the current buffer with the last visual selection's
 ---line range to the OCPrompt buffer.
----Format: @relative/path/to/file#Lstart-Lend
+---Format: ./relative/path/to/file#Lstart-Lend
 ---@return nil
 function M.add_visual()
   local bufnr = vim.api.nvim_get_current_buf()
@@ -123,9 +126,9 @@ function M.add_visual()
 
   local ref
   if start_line == end_line then
-    ref = '@' .. rel .. '#L' .. start_line
+    ref = './' .. rel .. '#L' .. start_line
   else
-    ref = '@' .. rel .. '#L' .. start_line .. '-L' .. end_line
+    ref = './' .. rel .. '#L' .. start_line .. '-L' .. end_line
   end
 
   append_to_prompt({ ref })
@@ -154,18 +157,18 @@ function M.add_diagnostics()
   local lines = {}
   local severity_labels = { 'ERROR', 'WARN', 'INFO', 'HINT' }
 
-  table.insert(lines, #diagnostics .. ' diagnostic(s) in @' .. rel .. ':')
+  table.insert(lines, #diagnostics .. ' diagnostic(s) in ./' .. rel .. ':')
 
   for _, d in ipairs(diagnostics) do
     local location = string.format('#L%d:C%d', d.lnum + 1, d.col + 1)
     local severity = severity_labels[d.severity] or 'UNKNOWN'
     local msg = d.message:gsub('%s+', ' '):gsub('^%s', ''):gsub('%s$', '')
     local source = d.source and (' (' .. d.source .. ')') or ''
-    table.insert(lines, string.format('  @%s%s [%s]%s: %s', rel, location, severity, source, msg))
+    table.insert(lines, string.format('  ./%s%s [%s]%s: %s', rel, location, severity, source, msg))
   end
 
   append_to_prompt(lines)
-  Notify.info(string.format('Added %d diagnostic(s) from @%s', #diagnostics, rel))
+  Notify.info(string.format('Added %d diagnostic(s) from ./%s', #diagnostics, rel))
 end
 
 ---Append references for all open normal file buffers to the OCPrompt buffer.
@@ -181,7 +184,7 @@ function M.add_buffers()
         if rel:sub(1, 1) == '/' then
           rel = name
         end
-        table.insert(refs, '@' .. rel)
+        table.insert(refs, './' .. rel)
       end
     end
   end
