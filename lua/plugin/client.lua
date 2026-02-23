@@ -371,6 +371,35 @@ function Client:tui_publish(event_type, properties, callback)
 	end)
 end
 
+---Dispose the directory-scoped OpenCode instance using a blocking curl call.
+---Intentionally synchronous (vim.fn.system) because it is only called from
+---VimLeavePre where Neovim is exiting and async callbacks will never fire.
+---@param port number Port the OpenCode server is listening on
+---@param directory string The server's canonical working directory (from /path response)
+---@return boolean success True if the server acknowledged the dispose request
+function Client.dispose_instance_sync(port, directory)
+	local url = string.format(
+		"http://%s:%d/instance/dispose?directory=%s",
+		DEFAULT_HOST,
+		port,
+		directory
+	)
+	local result = vim.fn.system({
+		"curl",
+		"-s",
+		"-o",
+		"/dev/null",
+		"-w",
+		"%{http_code}",
+		"-X",
+		"POST",
+		"--max-time",
+		"2",
+		url,
+	})
+	return result ~= nil and result:match("^2%d%d") ~= nil
+end
+
 ---Checks if a port is available by attempting to connect to it.
 ---@param port number Port number to check
 ---@return boolean True if port is available (connection fails), false if occupied (connection succeeds)

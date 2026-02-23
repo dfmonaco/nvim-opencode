@@ -629,4 +629,47 @@ T["OpenCodeClient"]["get_latest_session_id()"]["handles server errors"] = functi
 	child.stop()
 end
 
+-- ============================================================================
+-- dispose_instance_sync() tests
+-- ============================================================================
+
+T["OpenCodeClient"]["dispose_instance_sync()"] = MiniTest.new_set()
+
+T["OpenCodeClient"]["dispose_instance_sync()"]["returns false when no server is running"] = function()
+	local child = MiniTest.new_child_neovim()
+	child.restart({ "-u", "scripts/minimal_init.lua" })
+
+	child.lua([[
+		local Client = require('plugin.client')
+		_G.result = Client.dispose_instance_sync(9999, '/tmp/no-such-project')
+	]])
+
+	local result = child.lua_get([[_G.result]])
+	MiniTest.expect.equality(result, false, "Should return false when server is unreachable")
+
+	child.stop()
+end
+
+T["OpenCodeClient"]["dispose_instance_sync()"]["returns true when server responds with 2xx"] = function()
+	local server = spawn_headless_server(60099)
+	if not server then
+		MiniTest.skip("opencode CLI not available, skipping integration test")
+		return
+	end
+
+	local child = MiniTest.new_child_neovim()
+	child.restart({ "-u", "scripts/minimal_init.lua" })
+
+	child.lua(string.format([[
+		local Client = require('plugin.client')
+		_G.result = Client.dispose_instance_sync(%d, vim.fn.getcwd())
+	]], server.port))
+
+	local result = child.lua_get([[_G.result]])
+	MiniTest.expect.equality(result, true, "Should return true when server acknowledges dispose")
+
+	child.stop()
+	server:kill()
+end
+
 return T

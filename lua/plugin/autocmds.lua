@@ -1,5 +1,6 @@
 local M = {}
 
+local Client = require('plugin.client')
 local Notify = require('plugin.notify')
 local State = require('plugin.state')
 
@@ -29,6 +30,20 @@ function M.setup(opts)
         if info and info.id then
           State.set_session_id(info.id)
         end
+      end
+    end,
+  })
+
+  -- Gracefully dispose the directory-scoped OpenCode instance when Neovim exits.
+  -- Uses a blocking curl call (acceptable here since we are in the shutdown path
+  -- and async callbacks would never fire).
+  vim.api.nvim_create_autocmd('VimLeavePre', {
+    desc = 'Gracefully dispose OpenCode server instance on exit',
+    callback = function()
+      local port = State.get_port()
+      local directory = State.get_project_root()
+      if port and directory then
+        Client.dispose_instance_sync(port, directory)
       end
     end,
   })

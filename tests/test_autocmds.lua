@@ -97,4 +97,77 @@ T["autocmds"]["non-session events do not alter session_id"] = function()
 	MiniTest.expect.equality(after, "ses_keep")
 end
 
+-- ─── VimLeavePre ─────────────────────────────────────────────────────────────
+
+T["autocmds"]["VimLeavePre does not call dispose when port is nil"] = function()
+	-- Ensure state has no port or project_root
+	child.lua([[
+    require('plugin.state').set_port(nil)
+    require('plugin.state').set_project_root(nil)
+    -- Spy: track whether vim.fn.system was called with a dispose URL
+    _G.dispose_called = false
+    local orig_system = vim.fn.system
+    vim.fn.system = function(cmd)
+      if type(cmd) == 'table' then
+        for _, v in ipairs(cmd) do
+          if type(v) == 'string' and v:find('instance/dispose') then
+            _G.dispose_called = true
+          end
+        end
+      end
+      return orig_system(cmd)
+    end
+  ]])
+
+	child.lua([[vim.api.nvim_exec_autocmds('VimLeavePre', {})]])
+
+	local called = child.lua_get([[_G.dispose_called]])
+	MiniTest.expect.equality(called, false, "dispose_instance_sync should NOT be called when port is nil")
+end
+
+T["autocmds"]["VimLeavePre calls dispose when port and project_root are set"] = function()
+	child.lua([[
+    require('plugin.state').set_port(60042)
+    require('plugin.state').set_project_root('/tmp/test-project')
+    -- Spy: capture the args passed to vim.fn.system
+    _G.dispose_called = false
+    _G.dispose_url = nil
+    local orig_system = vim.fn.system
+    vim.fn.system = function(cmd)
+      if type(cmd) == 'table' then
+        for _, v in ipairs(cmd) do
+          if type(v) == 'string' and v:find('instance/dispose') then
+            _G.dispose_called = true
+            _G.dispose_url = v
+          end
+        end
+      end
+      -- Return a fake 200 so dispose_instance_sync returns true
+      return '200'
+    end
+  ]])
+
+	child.lua([[vim.api.nvim_exec_autocmds('VimLeavePre', {})]])
+
+	local called = child.lua_get([[_G.dispose_called]])
+	local url = child.lua_get([[_G.dispose_url]])
+
+	MiniTest.expect.equality(called, true, "dispose_instance_sync should be called when port and project_root are set")
+	MiniTest.expect.equality(
+		type(url),
+		"string",
+		"A URL containing 'instance/dispose' should have been passed to vim.fn.system"
+	)
+	MiniTest.expect.equality(
+		url:find("60042") ~= nil,
+		true,
+		"URL should contain the correct port"
+	)
+	MiniTest.expect.equality(
+		url:find("/tmp/test%-project") ~= nil,
+		true,
+		"URL should contain the project root directory"
+	)
+end
+
 return T
