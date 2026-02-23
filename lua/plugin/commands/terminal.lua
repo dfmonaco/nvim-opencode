@@ -3,6 +3,8 @@ local Client = require('plugin.client')
 local Sse = require('plugin.sse')
 local Notify = require('plugin.notify')
 
+-- ─── Buffer Guard ─────────────────────────────────────────────────────────────
+
 ---Registers a global BufWinEnter autocmd that prevents any buffer other than the
 ---terminal buffer from being displayed in the terminal window.
 ---If an intruding buffer lands in the terminal window (e.g. from a file picker,
@@ -19,6 +21,7 @@ local function setup_buf_guard(buf)
       if ev.buf == buf then
         return
       end
+
       -- Check all windows currently showing the intruder buffer.
       -- If any of them is tagged as the terminal window, an intrusion occurred.
       local intruder_term_win = nil
@@ -28,9 +31,11 @@ local function setup_buf_guard(buf)
           break
         end
       end
+
       if not intruder_term_win then
         return
       end
+
       -- An intruder landed in the terminal window.
       -- Defer the swap to avoid re-entrancy issues during BufWinEnter.
       -- Restore the terminal buffer and redirect the intruder to the
@@ -42,6 +47,7 @@ local function setup_buf_guard(buf)
         if vim.api.nvim_win_is_valid(term_win) and vim.api.nvim_buf_is_valid(buf) then
           vim.api.nvim_win_set_buf(term_win, buf)
         end
+
         -- Find first non-terminal window to redirect the intruder to
         local target_win = nil
         for _, w in ipairs(vim.api.nvim_list_wins()) do
@@ -50,9 +56,11 @@ local function setup_buf_guard(buf)
             break
           end
         end
+
         if target_win and vim.api.nvim_buf_is_valid(intruder_buf) then
           vim.api.nvim_win_set_buf(target_win, intruder_buf)
         end
+
         -- Redirect focus if it ended up on the terminal window
         if vim.api.nvim_get_current_win() == term_win and target_win and vim.api.nvim_win_is_valid(target_win) then
           vim.api.nvim_set_current_win(target_win)
@@ -61,6 +69,8 @@ local function setup_buf_guard(buf)
     end,
   })
 end
+
+-- ─── Window Lookup ────────────────────────────────────────────────────────────
 
 ---Finds the window currently displaying the terminal buffer.
 ---Checks the stored window ID first (O(1) fast path), then falls back to
@@ -93,113 +103,147 @@ local function find_terminal_win(buf)
   return nil
 end
 
+-- ─── Lifecycle ────────────────────────────────────────────────────────────────
+
+---Tears down all terminal state when the terminal buffer is wiped.
+---Called from the BufDelete autocmd registered at terminal creation.
+local function cleanup_terminal()
+  Sse.disconnect()
+  state.set_terminal_buffer(nil)
+  state.set_terminal_win(nil)
+  state.set_session_id(nil)
+  state.set_port(nil)
+  vim.schedule(function()
+    vim.cmd('redrawstatus')
+  end)
+end
+
+---Opens a vsplit with the opencode terminal process and configures the new buffer.
+---@param port number The port the opencode server will listen on
+---@return number buf  The new terminal buffer number
+---@return number win  The new terminal window ID
+local function create_terminal(port)
+  vim.cmd('vsplit | terminal opencode --continue --port ' .. tostring(port))
+  local buf = vim.api.nvim_get_current_buf()
+  local win = vim.api.nvim_get_current_win()
+
+  vim.bo[buf].buflisted = false
+  vim.api.nvim_buf_set_name(buf, 'opencode://terminal')
+  vim.w[win].is_opencode_terminal = true
+
+  return buf, win
+end
+
+-- ─── Server Bootstrap ─────────────────────────────────────────────────────────
+
+---Called once the server is confirmed healthy.
+---Fetches the active session ID, stores it in state, connects the SSE stream,
+---and notifies the user.
+---@param port   number           Port the server is listening on
+---@param client OpenCodeClient   Already-created client instance
+local function on_server_ready(port, client)
+  Notify.info('Connected to OpenCode Server at port ' .. tostring(port))
+
+  client:get_latest_session_id(function(err, session_id)
+    if err or not session_id then
+      vim.schedule(function()
+        Notify.warn('Failed to fetch session ID: ' .. (err or 'unknown error'))
+      end)
+      return
+    end
+
+    state.set_session_id(session_id)
+    Sse.connect(port)
+    vim.schedule(function()
+      Notify.info('Session ID: ' .. session_id)
+      vim.cmd('redrawstatus')
+    end)
+  end)
+end
+
+---Polls GET /global/health until the server is ready, then calls on_server_ready.
+---Retries up to max_attempts times with a 100 ms interval (~5 s total).
+---@param port number Port the server is expected to be listening on
+local function poll_server_health(port)
+  local client = Client.get_or_create_client()
+  local max_attempts = 50
+  local attempt = 0
+
+  local function poll()
+    attempt = attempt + 1
+
+    client:get_health(function(err, health)
+      if not err and health and health.healthy then
+        vim.schedule(function()
+          on_server_ready(port, client)
+        end)
+      elseif attempt < max_attempts then
+        vim.defer_fn(poll, 100)
+      else
+        vim.schedule(function()
+          Notify.warn('OpenCode server did not become healthy after 5 seconds')
+        end)
+      end
+    end)
+  end
+
+  poll()
+end
+
+-- ─── Toggle ───────────────────────────────────────────────────────────────────
+
 ---Toggles the terminal window.
 ---Creates if it doesn't exist, hides if visible, shows if hidden.
----Focus always returns to the original window.
+---Focus always returns to the original window after the operation.
 ---@return nil
 local function toggle()
-  local current_win = vim.api.nvim_get_current_win()
+  local origin_win = vim.api.nvim_get_current_win()
   local buf = state.get_terminal_buffer()
   local term_win = find_terminal_win(buf)
 
-  -- Terminal window is visible: hide it (buffer stays loaded in memory)
+  -- Case 1: Terminal window is visible → hide it (buffer stays loaded in memory)
   if term_win then
     vim.api.nvim_win_hide(term_win)
     state.set_terminal_win(nil)
     return
   end
 
-  -- Terminal buffer exists but isn't visible: show it in a new right split
+  -- Case 2: Terminal buffer exists but is hidden → show it in a new right split
   if buf and vim.api.nvim_buf_is_valid(buf) then
     vim.cmd('vsplit')
     local new_win = vim.api.nvim_get_current_win()
     vim.api.nvim_win_set_buf(new_win, buf)
-    state.set_terminal_win(new_win)
     vim.w[new_win].is_opencode_terminal = true
-    vim.api.nvim_set_current_win(current_win)
+    state.set_terminal_win(new_win)
+    vim.api.nvim_set_current_win(origin_win)
     return
   end
 
-  -- No buffer yet: allocate a port and create the terminal in a new right split
+  -- Case 3: No terminal yet → allocate port, spawn process, bootstrap server
   local port, err = Client.allocate_port()
   if not port then
     Notify.error(err or 'Failed to allocate port for OpenCode terminal')
     return
   end
 
-  vim.cmd('vsplit | terminal opencode --continue --port ' .. tostring(port))
-  local new_buf = vim.api.nvim_get_current_buf()
-  local new_win = vim.api.nvim_get_current_win()
-
-  vim.bo[new_buf].buflisted = false
-  vim.api.nvim_buf_set_name(new_buf, 'opencode://terminal')
+  local new_buf, new_win = create_terminal(port)
 
   state.set_terminal_buffer(new_buf)
   state.set_port(port)
-
   state.set_terminal_win(new_win)
-  vim.w[new_win].is_opencode_terminal = true
+
   setup_buf_guard(new_buf)
 
-  vim.api.nvim_set_current_win(current_win)
-
-  -- Disconnect SSE and clear all state when the terminal buffer is wiped
-  -- (triggered by the opencode process exiting or an explicit :bdelete)
   vim.api.nvim_create_autocmd('BufDelete', {
     buffer = new_buf,
     once = true,
-    callback = function()
-      Sse.disconnect()
-      state.set_terminal_buffer(nil)
-      state.set_terminal_win(nil)
-      state.set_session_id(nil)
-      state.set_port(nil)
-      vim.schedule(function()
-        vim.cmd('redrawstatus')
-      end)
-    end,
+    callback = cleanup_terminal,
   })
 
-  -- Poll the health endpoint until the server is ready, then fetch the session ID
+  vim.api.nvim_set_current_win(origin_win)
+
   vim.defer_fn(function()
-    local client = Client.get_or_create_client()
-
-    local max_attempts = 50
-    local attempt = 0
-
-    local function poll_health()
-      attempt = attempt + 1
-
-      client:get_health(function(health_err, health)
-        if not health_err and health and health.healthy then
-          vim.schedule(function()
-            Notify.info('Connected to OpenCode Server at port ' .. tostring(port))
-          end)
-          client:get_latest_session_id(function(err_session, session_id)
-            if not err_session and session_id then
-              state.set_session_id(session_id)
-              vim.schedule(function()
-                Notify.info('Session ID: ' .. session_id)
-                vim.cmd('redrawstatus')
-              end)
-              Sse.connect(port)
-            else
-              vim.schedule(function()
-                Notify.warn('Failed to fetch session ID: ' .. (err_session or 'unknown error'))
-              end)
-            end
-          end)
-        elseif attempt < max_attempts then
-          vim.defer_fn(poll_health, 100)
-        else
-          vim.schedule(function()
-            Notify.warn('OpenCode server did not become healthy after 5 seconds')
-          end)
-        end
-      end)
-    end
-
-    poll_health()
+    poll_server_health(port)
   end, 0)
 end
 
