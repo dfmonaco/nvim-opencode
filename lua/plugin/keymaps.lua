@@ -19,6 +19,27 @@ function M.setup(opts)
     silent = true,
   })
 
+  -- Scroll TUI half page down
+  vim.keymap.set({'n', 'i'}, '<Down>', '<cmd>OCHalfPageDown<cr>', {
+    desc = 'Scroll OpenCode TUI half page down',
+    noremap = true,
+    silent = true,
+  })
+
+  -- Scroll TUI half page up
+  vim.keymap.set({'n', 'i'}, '<Up>', '<cmd>OCHalfPageUp<cr>', {
+    desc = 'Scroll OpenCode TUI half page up',
+    noremap = true,
+    silent = true,
+  })
+
+  -- Cycle to the next agent
+  vim.keymap.set({'n', 'i'}, '<C-\\>', '<cmd>OCAgentCycle<cr>', {
+    desc = 'Cycle to the next OpenCode agent',
+    noremap = true,
+    silent = true,
+  })
+
   -- Send buffer or selection to session
   vim.keymap.set({ 'n', 'v' }, '<leader>om', '<cmd>OCSend<cr>', {
     desc = 'Send current buffer (or visual selection) to OpenCode session',
@@ -54,20 +75,6 @@ function M.setup(opts)
     silent = true,
   })
 
-  -- Scroll TUI half page down
-  vim.keymap.set('n', '<Down>', '<cmd>OCHalfPageDown<cr>', {
-    desc = 'Scroll OpenCode TUI half page down',
-    noremap = true,
-    silent = true,
-  })
-
-  -- Scroll TUI half page up
-  vim.keymap.set('n', '<Up>', '<cmd>OCHalfPageUp<cr>', {
-    desc = 'Scroll OpenCode TUI half page up',
-    noremap = true,
-    silent = true,
-  })
-
   -- Compact the current session
   vim.keymap.set('n', '<leader>osc', '<cmd>OCCompact<cr>', {
     desc = 'Compact the current OpenCode session',
@@ -75,12 +82,6 @@ function M.setup(opts)
     silent = true,
   })
 
-  -- Cycle to the next agent
-  vim.keymap.set('n', '<C-\\>', '<cmd>OCAgentCycle<cr>', {
-    desc = 'Cycle to the next OpenCode agent',
-    noremap = true,
-    silent = true,
-  })
 end
 
 return M
