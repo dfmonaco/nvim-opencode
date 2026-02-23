@@ -58,6 +58,61 @@ function M.setup(opts)
     require('plugin.commands.tui').execute('session.compact')
   end, { desc = 'Compact the current OpenCode session' })
 
+  -- Register OCUndo command
+  vim.api.nvim_create_user_command('OCUndo', function()
+    require('plugin.commands.tui').execute('session.undo', { silent = true })
+  end, { desc = 'Undo last session action' })
+
+  -- Register OCRedo command
+  vim.api.nvim_create_user_command('OCRedo', function()
+    require('plugin.commands.tui').execute('session.redo', { silent = true })
+  end, { desc = 'Redo last session action' })
+
+  -- Register OCFirst command
+  vim.api.nvim_create_user_command('OCFirst', function()
+    require('plugin.commands.tui').execute('session.first', { silent = true })
+  end, { desc = 'Jump to first message in session' })
+
+  -- Register OCLast command
+  vim.api.nvim_create_user_command('OCLast', function()
+    require('plugin.commands.tui').execute('session.last', { silent = true })
+  end, { desc = 'Jump to last message in session' })
+
+  -- Register OCLastUser command
+  vim.api.nvim_create_user_command('OCLastUser', function()
+    require('plugin.commands.tui').execute('session.messages_last_user', { silent = true })
+  end, { desc = 'Jump to last user message in session' })
+
+  -- Register OCChildNext command
+  vim.api.nvim_create_user_command('OCChildNext', function()
+    require('plugin.commands.tui').execute('session.child.next', { silent = true })
+  end, { desc = 'Go to next child session' })
+
+  -- Register OCChildPrev command
+  vim.api.nvim_create_user_command('OCChildPrev', function()
+    require('plugin.commands.tui').execute('session.child.previous', { silent = true })
+  end, { desc = 'Go to previous child session' })
+
+  -- Register OCPromptSubmit command
+  vim.api.nvim_create_user_command('OCPromptSubmit', function()
+    require('plugin.commands.tui').execute('prompt.submit', { silent = true })
+  end, { desc = 'Submit the TUI prompt' })
+
+  -- Register OCPromptClear command
+  vim.api.nvim_create_user_command('OCPromptClear', function()
+    require('plugin.commands.tui').execute('prompt.clear', { silent = true })
+  end, { desc = 'Clear the TUI prompt' })
+
+  -- Register OCPromptPaste command
+  vim.api.nvim_create_user_command('OCPromptPaste', function()
+    require('plugin.commands.tui').execute('prompt.paste', { silent = true })
+  end, { desc = 'Paste into the TUI prompt' })
+
+  -- Register OCModelCycleFavorite command
+  vim.api.nvim_create_user_command('OCModelCycleFavorite', function()
+    require('plugin.commands.tui').execute('model.cycle_favorite', { silent = true })
+  end, { desc = 'Cycle to next favorite model' })
+
   -- Register OCAgentCycle command
   vim.api.nvim_create_user_command('OCAgentCycle', function()
     require('plugin.commands.tui').execute('agent.cycle')
