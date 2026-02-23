@@ -90,23 +90,15 @@ function M.append_and_submit()
 	end)
 end
 
----Interrupt the current AI run in the TUI.
----@return nil
-function M.interrupt()
-	M.execute("session.interrupt")
-end
-
----Start a new session in the TUI.
----@return nil
-function M.new_session()
-	M.execute("session.new")
-end
+---@class TuiExecuteOpts
+---@field silent? boolean Suppress success notification (errors are always shown)
 
 ---Execute a named TUI command (e.g. "session.interrupt", "session.new", "agent.cycle").
 ---This is the generic escape hatch; prefer named actions (interrupt, new_session) for known commands.
 ---@param command TuiCommandName|string TUI command name
+---@param opts? TuiExecuteOpts
 ---@return nil
-function M.execute(command)
+function M.execute(command, opts)
 	if not command or command == "" then
 		Notify.error("No TUI command specified.")
 		return
@@ -118,10 +110,22 @@ function M.execute(command)
 	client:tui_publish("tui.command.execute", { command = command }, function(req_err, success)
 		if req_err then
 			Notify.error("Failed to execute TUI command '" .. command .. "': " .. req_err)
-		elseif success then
+		elseif success and not (opts and opts.silent) then
 			Notify.info("TUI command '" .. command .. "' executed")
 		end
 	end)
+end
+
+---Interrupt the current AI run in the TUI.
+---@return nil
+function M.interrupt()
+	M.execute("session.interrupt")
+end
+
+---Start a new session in the TUI.
+---@return nil
+function M.new_session()
+	M.execute("session.new")
 end
 
 return M

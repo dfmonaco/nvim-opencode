@@ -45,12 +45,12 @@ function M.setup(opts)
 
   -- Register OCHalfPageDown command
   vim.api.nvim_create_user_command('OCHalfPageDown', function()
-    require('plugin.commands.tui').execute('session.half.page.down')
+    require('plugin.commands.tui').execute('session.half.page.down', { silent = true })
   end, { desc = 'Scroll TUI half page down' })
 
   -- Register OCHalfPageUp command
   vim.api.nvim_create_user_command('OCHalfPageUp', function()
-    require('plugin.commands.tui').execute('session.half.page.up')
+    require('plugin.commands.tui').execute('session.half.page.up', { silent = true })
   end, { desc = 'Scroll TUI half page up' })
 
   -- Register OCCompact command
