@@ -180,6 +180,40 @@ function Client:get_health(callback)
 	end)
 end
 
+---@class PathResponse
+---@field home string
+---@field state string
+---@field config string
+---@field worktree string
+---@field directory string The canonical working directory the server instance was started in
+
+---Get the server's canonical path info.
+---The `directory` field is the exact value the server uses as its instance key —
+---use this (not git rev-parse) when constructing the SSE ?directory= URL.
+---@param callback fun(err: string|nil, path: PathResponse|nil)
+---@return nil
+function Client:get_path(callback)
+	self:request("GET", "/path", function(err, response)
+		if err then
+			callback(err, nil)
+			return
+		end
+
+		if not response or response.status ~= 200 then
+			callback("get_path failed with status: " .. (response and response.status or "unknown"), nil)
+			return
+		end
+
+		local ok, decoded = pcall(vim.json.decode, response.body)
+		if not ok then
+			callback("Failed to parse path response: " .. tostring(decoded), nil)
+			return
+		end
+
+		callback(nil, decoded)
+	end)
+end
+
 ---Get the ID of the most recently active session.
 ---Returns the session with the latest 'time.updated' timestamp.
 ---@param callback fun(err: string|nil, session_id: string|nil)
@@ -264,6 +298,45 @@ function Client:send_message_async(session_id, message_parts, opts, callback)
 		end
 
 		callback(nil, true)
+	end)
+end
+
+---@class SessionInfo
+---@field id string Session ID
+---@field title string Session title
+---@field parentID string|nil Parent session ID (if forked)
+
+---Create a new session via POST /session.
+---This calls Session.create() on the server, which publishes `session.created` on the Bus.
+---The TUI will pick up the new session via its own SSE subscription and navigate to it.
+---@param callback fun(err: string|nil, session: SessionInfo|nil)
+---@return nil
+function Client:create_session(callback)
+	self:request("POST", "/session", {
+		body = "{}",
+		headers = { ["Content-Type"] = "application/json" },
+	}, function(err, response)
+		if err then
+			callback(err, nil)
+			return
+		end
+
+		if not response or response.status ~= 200 then
+			local error_msg = "Create session failed with status: " .. (response and response.status or "unknown")
+			if response and response.body and response.body ~= "" then
+				error_msg = error_msg .. " - " .. response.body
+			end
+			callback(error_msg, nil)
+			return
+		end
+
+		local ok, decoded = pcall(vim.json.decode, response.body)
+		if not ok then
+			callback("Failed to parse session response: " .. tostring(decoded), nil)
+			return
+		end
+
+		callback(nil, decoded)
 	end)
 end
 
