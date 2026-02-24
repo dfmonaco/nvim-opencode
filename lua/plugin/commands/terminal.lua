@@ -111,6 +111,7 @@ local function cleanup_terminal()
   Sse.disconnect()
   state.set_terminal_buffer(nil)
   state.set_terminal_win(nil)
+  state.set_terminal_pid(nil)
   state.set_session_id(nil)
   state.set_port(nil)
   state.set_project_root(nil)
@@ -131,6 +132,19 @@ local function create_terminal(port)
   vim.bo[buf].buflisted = false
   vim.api.nvim_buf_set_name(buf, 'opencode://terminal')
   vim.w[win].is_opencode_terminal = true
+
+  -- Cache PID eagerly at terminal open time because by the time VimLeavePre fires,
+  -- the terminal job may have been cleared and terminal_job_id may no longer be available.
+  -- We use vim.fn.jobpid() to get the actual PID from the job ID.
+  vim.defer_fn(function()
+    local job_id = vim.b[buf].terminal_job_id
+    if job_id then
+      local ok, pid = pcall(vim.fn.jobpid, job_id)
+      if ok then
+        state.set_terminal_pid(pid)
+      end
+    end
+  end, 0)
 
   return buf, win
 end

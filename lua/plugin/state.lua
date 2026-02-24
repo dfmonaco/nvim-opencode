@@ -4,6 +4,7 @@ local M = {}
 -- {
 --   terminal_bufnr = 5,                          -- buffer running the OpenCode process
 --   terminal_winid = 1003,                       -- window currently showing the terminal buffer
+--   terminal_pid = 12345,                        -- PID of the opencode process (for reliable kill on exit)
 --   ocprompt_bufnr = 8,                          -- buffer used for prompt input
 --   port           = 4096,                       -- port the OpenCode server is listening on
 --   session_id     = "ses_abc123",               -- active session ID
@@ -16,6 +17,7 @@ local M = {}
 local state = {
   terminal_bufnr = nil, -- Buffer number for the embedded terminal running the OpenCode process
   terminal_winid = nil, -- Window ID of the split currently showing the terminal buffer
+  terminal_pid = nil, -- PID of the opencode process (obtained via vim.fn.jobpid); used for reliable kill on exit
   ocprompt_bufnr = nil, -- Buffer number for the OCPrompt input buffer (opens in current window)
   port = nil, -- Port allocated for client/server
   session_id = nil, -- Currently active OpenCode session ID
@@ -46,6 +48,18 @@ end
 ---@return number|nil
 function M.get_terminal_win()
   return state.terminal_winid
+end
+
+---Sets the terminal PID (obtained via vim.fn.jobpid from the job ID)
+---@param pid number|nil
+function M.set_terminal_pid(pid)
+  state.terminal_pid = pid
+end
+
+---Gets the terminal PID
+---@return number|nil
+function M.get_terminal_pid()
+  return state.terminal_pid
 end
 
 ---Sets the OCPrompt buffer number
