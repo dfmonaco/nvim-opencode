@@ -301,6 +301,19 @@ function Client:send_message_async(session_id, message_parts, opts, callback)
 	end)
 end
 
+---@class SlashCommand
+---@field name string Command name (without leading slash)
+---@field description? string Human-readable description
+---@field template string Command template string
+---@field hints table Argument hints
+---@field subtask? boolean Whether the command creates a subtask
+---@field agent? string Optional agent override
+---@field model? string Optional model override
+---@field source? string Source file that defines the command
+
+---@class ExecuteCommandOpts
+---@field arguments? string Optional arguments for the command
+
 ---@class SessionInfo
 ---@field id string Session ID
 ---@field title string Session title
@@ -364,6 +377,76 @@ function Client:tui_publish(event_type, properties, callback)
 
 		if not response or response.status ~= 200 then
 			callback("TUI publish failed with status: " .. (response and response.status or "unknown"), nil)
+			return
+		end
+
+		callback(nil, true)
+	end)
+end
+
+---List all available slash commands from the server.
+---@param callback fun(err: string|nil, commands: SlashCommand[]|nil)
+---@return nil
+function Client:list_commands(callback)
+	self:request("GET", "/command", function(err, response)
+		if err then
+			callback(err, nil)
+			return
+		end
+
+		if not response or response.status ~= 200 then
+			callback("list_commands failed with status: " .. (response and response.status or "unknown"), nil)
+			return
+		end
+
+		local ok, decoded = pcall(vim.json.decode, response.body)
+		if not ok then
+			callback("Failed to parse commands response: " .. tostring(decoded), nil)
+			return
+		end
+
+		if type(decoded) ~= "table" then
+			callback("Invalid commands response: expected array", nil)
+			return
+		end
+
+		callback(nil, decoded)
+	end)
+end
+
+---Execute a slash command in a session via POST /session/{sessionID}/command.
+---@param session_id string Session ID to execute the command in
+---@param command_name string Slash command name (without leading slash)
+---@param opts? ExecuteCommandOpts Optional execution parameters
+---@param callback fun(err: string|nil, success: boolean|nil)
+---@return nil
+function Client:execute_command(session_id, command_name, opts, callback)
+	opts = opts or {}
+
+	local request_body = { command = command_name, arguments = opts.arguments or "" }
+
+	local ok, body_json = pcall(vim.json.encode, request_body)
+	if not ok then
+		callback("Failed to encode request body: " .. tostring(body_json), nil)
+		return
+	end
+
+	local path = "/session/" .. session_id .. "/command"
+	self:request("POST", path, {
+		body = body_json,
+		headers = { ["Content-Type"] = "application/json" },
+	}, function(req_err, response)
+		if req_err then
+			callback(req_err, nil)
+			return
+		end
+
+		if not response or response.status ~= 200 then
+			local error_msg = "execute_command failed with status: " .. (response and response.status or "unknown")
+			if response and response.body and response.body ~= "" then
+				error_msg = error_msg .. " - " .. response.body
+			end
+			callback(error_msg, nil)
 			return
 		end
 

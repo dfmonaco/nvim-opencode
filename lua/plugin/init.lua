@@ -138,6 +138,11 @@ function M.setup(opts)
     require('plugin.commands.context').add_buffers()
   end, { desc = 'Append all open buffer references to OCPrompt' })
 
+  -- Register OCSlashCommand command
+  vim.api.nvim_create_user_command('OCSlashCommand', function()
+    require('plugin.commands.slash_command').pick()
+  end, { desc = 'Pick and execute a slash command in the current session' })
+
   -- Register OCDebugState command
   vim.api.nvim_create_user_command('OCDebugState', function()
     require('plugin.commands.debug').paste_state()

@@ -159,6 +159,13 @@ function M.setup(opts)
     silent = true,
   })
 
+  -- Pick and execute a slash command
+  vim.keymap.set('n', '<leader>o/', '<cmd>OCSlashCommand<cr>', {
+    desc = 'Pick and execute a slash command in the current session',
+    noremap = true,
+    silent = true,
+  })
+
   -- Add current file reference to OCPrompt (normal mode)
   vim.keymap.set('n', '<leader>oca', '<cmd>OCContextFile<cr>', {
     desc = 'Append current file reference to OCPrompt',
