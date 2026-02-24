@@ -25,6 +25,21 @@ function M.setup(opts)
         Notify.info('Agent Finished')
       end
 
+      if event.type == 'file.edited' then
+        local file_path = event.properties and event.properties.file
+        if file_path and vim.o.autoread then
+          vim.schedule(function()
+            vim.cmd("checktime " .. vim.fn.fnameescape(file_path))
+          end)
+        elseif file_path and not vim.o.autoread then
+          vim.notify(
+            'Please set `vim.o.autoread = true` to auto-reload files edited by OpenCode',
+            vim.log.levels.WARN,
+            { title = 'opencode' }
+          )
+        end
+      end
+
       if event.type == 'session.created' then
         local info = event.properties and event.properties.info
         if info and info.id then
