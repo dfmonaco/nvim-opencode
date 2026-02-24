@@ -61,27 +61,6 @@ end
 
 T["tui.append()"] = MiniTest.new_set()
 
-T["tui.append()"]["shows error when port is not set"] = function()
-	local child = MiniTest.new_child_neovim()
-	child.restart({ "-u", "scripts/minimal_init.lua" })
-
-	child.lua([[require('plugin').setup()]])
-	child.lua([[require('plugin.state').set_port(nil)]])
-	child.lua(NOTIFY_HOOK)
-
-	child.cmd("enew")
-	child.lua([[vim.api.nvim_buf_set_lines(0, 0, -1, false, {'some content'})]])
-
-	child.lua([[require('plugin.commands.tui').append()]])
-
-	local notifications = child.lua_get([[_G.notifications]])
-	MiniTest.expect.equality(#notifications, 1)
-	MiniTest.expect.equality(notifications[1].msg:match("No OpenCode server port") ~= nil, true)
-	MiniTest.expect.equality(notifications[1].level, vim.log.levels.ERROR)
-
-	child.stop()
-end
-
 T["tui.append()"]["shows warning when buffer is empty"] = function()
 	local child = MiniTest.new_child_neovim()
 	child.restart({ "-u", "scripts/minimal_init.lua" })
@@ -176,27 +155,6 @@ end
 
 T["tui.append_and_submit()"] = MiniTest.new_set()
 
-T["tui.append_and_submit()"]["shows error when port is not set"] = function()
-	local child = MiniTest.new_child_neovim()
-	child.restart({ "-u", "scripts/minimal_init.lua" })
-
-	child.lua([[require('plugin').setup()]])
-	child.lua([[require('plugin.state').set_port(nil)]])
-	child.lua(NOTIFY_HOOK)
-
-	child.cmd("enew")
-	child.lua([[vim.api.nvim_buf_set_lines(0, 0, -1, false, {'some content'})]])
-
-	child.lua([[require('plugin.commands.tui').append_and_submit()]])
-
-	local notifications = child.lua_get([[_G.notifications]])
-	MiniTest.expect.equality(#notifications, 1)
-	MiniTest.expect.equality(notifications[1].msg:match("No OpenCode server port") ~= nil, true)
-	MiniTest.expect.equality(notifications[1].level, vim.log.levels.ERROR)
-
-	child.stop()
-end
-
 T["tui.append_and_submit()"]["appends then submits and notifies success"] = function()
 	local child = MiniTest.new_child_neovim()
 	child.restart({ "-u", "scripts/minimal_init.lua" })
@@ -283,24 +241,6 @@ end
 -- ---------------------------------------------------------------------------
 
 T["tui.execute()"] = MiniTest.new_set()
-
-T["tui.execute()"]["shows error when port is not set"] = function()
-	local child = MiniTest.new_child_neovim()
-	child.restart({ "-u", "scripts/minimal_init.lua" })
-
-	child.lua([[require('plugin').setup()]])
-	child.lua([[require('plugin.state').set_port(nil)]])
-	child.lua(NOTIFY_HOOK)
-
-	child.lua([[require('plugin.commands.tui').execute('session.interrupt')]])
-
-	local notifications = child.lua_get([[_G.notifications]])
-	MiniTest.expect.equality(#notifications, 1)
-	MiniTest.expect.equality(notifications[1].msg:match("No OpenCode server port") ~= nil, true)
-	MiniTest.expect.equality(notifications[1].level, vim.log.levels.ERROR)
-
-	child.stop()
-end
 
 T["tui.execute()"]["shows error when no command is given"] = function()
 	local child = MiniTest.new_child_neovim()

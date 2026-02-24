@@ -6,14 +6,7 @@ local Content = require("plugin.util.content")
 ---Sends current buffer content (or visual selection) to OpenCode session
 ---@return nil
 local function send()
-	local port = state.get_port()
 	local session_id = state.get_session_id()
-
-	if not port then
-		Notify.error("No OpenCode server port found. Please open OC terminal first.")
-		return
-	end
-
 	if not session_id then
 		Notify.error("No OpenCode session ID found. Please ensure OC terminal is running.")
 		return

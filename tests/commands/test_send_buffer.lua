@@ -16,41 +16,6 @@ T['OCSend command']['is registered after setup'] = function()
   child.stop()
 end
 
-T['OCSend command']['shows error when port is not set'] = function()
-  local child = MiniTest.new_child_neovim()
-  child.restart({ '-u', 'scripts/minimal_init.lua' })
-  
-  child.lua([[require('plugin').setup()]])
-  
-  -- Clear any state
-  child.lua([[require('plugin.state').set_port(nil)]])
-  child.lua([[require('plugin.state').set_session_id(nil)]])
-  
-  -- Create a buffer with content
-  child.cmd('enew')
-  child.lua([[vim.api.nvim_buf_set_lines(0, 0, -1, false, {'test content'})]])
-  
-  -- Track notifications
-  child.lua([[
-    _G.notifications = {}
-    local original_notify = vim.notify
-    vim.notify = function(msg, level)
-      table.insert(_G.notifications, {msg = msg, level = level})
-    end
-  ]])
-  
-  -- Execute OCSend by calling function directly
-  child.lua([[require('plugin.commands.send_buffer').send()]])
-  
-  -- Check that error notification was shown
-  local notifications = child.lua_get([[_G.notifications]])
-  MiniTest.expect.equality(#notifications, 1)
-  MiniTest.expect.equality(notifications[1].msg:match('No OpenCode server port') ~= nil, true)
-  MiniTest.expect.equality(notifications[1].level, vim.log.levels.ERROR)
-  
-  child.stop()
-end
-
 T['OCSend command']['shows error when session_id is not set'] = function()
   local child = MiniTest.new_child_neovim()
   child.restart({ '-u', 'scripts/minimal_init.lua' })

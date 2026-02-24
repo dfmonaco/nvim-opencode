@@ -49,24 +49,6 @@ end
 
 T["slash_command.pick()"] = MiniTest.new_set()
 
-T["slash_command.pick()"]["shows error when port is not set"] = function()
-  local child = MiniTest.new_child_neovim()
-  child.restart({ "-u", "scripts/minimal_init.lua" })
-
-  child.lua([[require('plugin').setup()]])
-  child.lua([[require('plugin.state').set_port(nil)]])
-  child.lua(NOTIFY_HOOK)
-
-  child.lua([[require('plugin.commands.slash_command').pick()]])
-
-  local notifications = child.lua_get([[_G.notifications]])
-  MiniTest.expect.equality(#notifications, 1)
-  MiniTest.expect.equality(notifications[1].msg:match("No OpenCode server port") ~= nil, true)
-  MiniTest.expect.equality(notifications[1].level, vim.log.levels.ERROR)
-
-  child.stop()
-end
-
 T["slash_command.pick()"]["shows error when session is not set"] = function()
   local child = MiniTest.new_child_neovim()
   child.restart({ "-u", "scripts/minimal_init.lua" })

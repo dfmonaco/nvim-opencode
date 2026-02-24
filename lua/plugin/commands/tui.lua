@@ -62,23 +62,11 @@ local M = {}
 ---| "terminal.suspend"
 ---| "terminal.title.toggle"
 
----Return a ready-to-use HTTP client, or notify and return nil if no server port is set.
----@return OpenCodeClient|nil
-local function get_client()
-	local port = State.get_port()
-	if not port then
-		Notify.error("No OpenCode server port found. Please open OC terminal first.")
-		return nil
-	end
-	return Client.get_or_create_client(port)
-end
-
 ---Append the current buffer or visual selection to the TUI prompt.
 ---The TUI prompt is pre-filled; the user submits manually from the TUI.
 ---@return nil
 function M.append()
-	local client = get_client()
-	if not client then return end
+	local client = Client.get_or_create_client()
 
 	local content, err = Content.get_content()
 	if not content then
@@ -100,8 +88,7 @@ end
 ---@param on_success? fun() Optional callback invoked after successful submit
 ---@return nil
 function M.append_and_submit(on_success)
-	local client = get_client()
-	if not client then return end
+	local client = Client.get_or_create_client()
 
 	local content, err = Content.get_content()
 	if not content then
@@ -147,8 +134,7 @@ function M.execute(command, opts)
 		return
 	end
 
-	local client = get_client()
-	if not client then return end
+	local client = Client.get_or_create_client()
 
 	client:tui_publish("tui.command.execute", { command = command }, function(req_err, success)
 		if req_err then
@@ -172,8 +158,7 @@ end
 ---because it only navigates the TUI to a blank home state without creating a session.
 ---@return nil
 function M.new_session()
-	local client = get_client()
-	if not client then return end
+	local client = Client.get_or_create_client()
 
 	client:create_session(function(err, session)
 		if err then
