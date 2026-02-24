@@ -103,6 +103,13 @@ function M.setup(opts)
     silent = true,
   })
 
+  -- Pick a session from the list
+  vim.keymap.set('n', '<leader>oss', '<cmd>OCSessionPick<cr>', {
+    desc = 'Pick a session and navigate the TUI to it',
+    noremap = true,
+    silent = true,
+  })
+
   -- Compact the current session
   vim.keymap.set('n', '<leader>osc', '<cmd>OCCompact<cr>', {
     desc = 'Compact the current OpenCode session',

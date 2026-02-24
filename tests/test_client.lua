@@ -630,6 +630,83 @@ T["OpenCodeClient"]["get_latest_session_id()"]["handles server errors"] = functi
 end
 
 -- ============================================================================
+-- list_sessions() tests
+-- ============================================================================
+
+T["OpenCodeClient"]["list_sessions()"] = MiniTest.new_set()
+
+T["OpenCodeClient"]["list_sessions()"]["returns a Session array"] = function()
+	local server = spawn_headless_server(17007)
+	if not server then
+		MiniTest.skip("OpenCode CLI not available or server failed to start")
+		return
+	end
+
+	local child = MiniTest.new_child_neovim()
+	child.restart({ "-u", "scripts/minimal_init.lua" })
+
+	child.lua([[
+		local Client = require('plugin.client')
+		_G.client = Client.new({ base_url = 'http://127.0.0.1:17007' })
+		_G.result = nil
+		_G.error = nil
+		_G.done = false
+
+		_G.client:list_sessions(function(err, sessions)
+			_G.error = err
+			_G.result = sessions
+			_G.done = true
+		end)
+	]])
+
+	child.lua([[vim.wait(5000, function() return _G.done end)]])
+
+	local error = child.lua_get([[_G.error]])
+	local result = child.lua_get([[_G.result]])
+
+	MiniTest.expect.equality(error, vim.NIL, "Should not return an error")
+	MiniTest.expect.no_equality(result, vim.NIL, "Should return a sessions array")
+	MiniTest.expect.equality(type(result), "table", "Sessions should be a table")
+	-- Each session should have id and title fields
+	if #result > 0 then
+		MiniTest.expect.no_equality(result[1].id, vim.NIL, "Session should have an id")
+		MiniTest.expect.equality(result[1].id:sub(1, 4), "ses_", "Session ID should start with 'ses_'")
+	end
+
+	child.stop()
+	server:kill()
+end
+
+T["OpenCodeClient"]["list_sessions()"]["handles server errors"] = function()
+	local child = MiniTest.new_child_neovim()
+	child.restart({ "-u", "scripts/minimal_init.lua" })
+
+	child.lua([[
+		local Client = require('plugin.client')
+		_G.client = Client.new({ base_url = 'http://localhost:9999' })
+		_G.result = nil
+		_G.error = nil
+		_G.done = false
+
+		_G.client:list_sessions(function(err, sessions)
+			_G.error = err
+			_G.result = sessions
+			_G.done = true
+		end)
+	]])
+
+	child.lua([[vim.wait(6000, function() return _G.done end)]])
+
+	local error = child.lua_get([[_G.error]])
+	local result = child.lua_get([[_G.result]])
+
+	MiniTest.expect.no_equality(error, vim.NIL, "Should return an error")
+	MiniTest.expect.equality(result, vim.NIL, "Should not return a result on error")
+
+	child.stop()
+end
+
+-- ============================================================================
 -- dispose_instance_sync() tests
 -- ============================================================================
 

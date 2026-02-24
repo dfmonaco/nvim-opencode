@@ -252,6 +252,37 @@ function Client:get_latest_session_id(callback)
 	end)
 end
 
+---List all sessions from GET /session, sorted by time.updated descending.
+---@param callback fun(err: string|nil, sessions: Session[]|nil)
+---@return nil
+function Client:list_sessions(callback)
+	self:request("GET", "/session", function(err, response)
+		if err then
+			callback(err, nil)
+			return
+		end
+
+		if not response or response.status ~= 200 then
+			callback("list_sessions failed with status: " .. (response and response.status or "unknown"), nil)
+			return
+		end
+
+		local ok, decoded = pcall(vim.json.decode, response.body)
+		if not ok then
+			callback("Failed to parse sessions response: " .. tostring(decoded), nil)
+			return
+		end
+
+		if type(decoded) ~= "table" then
+			callback("Invalid sessions response: expected array", nil)
+			return
+		end
+
+		---@type Session[]
+		callback(nil, decoded)
+	end)
+end
+
 ---Send a message to a session asynchronously (no wait for AI response).
 ---The AI response is delivered via Server-Sent Events on the /event endpoint.
 ---@param session_id string Session ID to send message to
@@ -313,6 +344,17 @@ end
 
 ---@class ExecuteCommandOpts
 ---@field arguments? string Optional arguments for the command
+
+---@class Session
+---@field id string Session ID (pattern: ^ses.*)
+---@field slug string Session slug
+---@field projectID string Project ID
+---@field directory string Working directory
+---@field parentID? string Parent session ID (if forked)
+---@field summary? string Session summary
+---@field title string Session title
+---@field version number Schema version
+---@field time { created: number, updated: number, archived?: number } Timestamps (unix ms)
 
 ---@class SessionInfo
 ---@field id string Session ID

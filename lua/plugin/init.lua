@@ -43,6 +43,11 @@ function M.setup(opts)
     require('plugin.commands.tui').new_session()
   end, { desc = 'Start a new OpenCode session' })
 
+  -- Register OCSessionPick command
+  vim.api.nvim_create_user_command('OCSessionPick', function()
+    require('plugin.commands.session_picker').pick()
+  end, { desc = 'Pick a session from the list and navigate the TUI to it' })
+
   -- Register OCHalfPageDown command
   vim.api.nvim_create_user_command('OCHalfPageDown', function()
     require('plugin.commands.tui').execute('session.half.page.down', { silent = true })
