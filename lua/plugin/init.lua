@@ -48,6 +48,11 @@ function M.setup(opts)
     require('plugin.commands.session_picker').pick()
   end, { desc = 'Pick a session from the list and navigate the TUI to it' })
 
+  -- Register OCSkillPick command
+  vim.api.nvim_create_user_command('OCSkillPick', function()
+    require('plugin.commands.skill_picker').pick()
+  end, { desc = 'Pick a skill and open its definition file' })
+
   -- Register OCHalfPageDown command
   vim.api.nvim_create_user_command('OCHalfPageDown', function()
     require('plugin.commands.tui').execute('session.half.page.down', { silent = true })

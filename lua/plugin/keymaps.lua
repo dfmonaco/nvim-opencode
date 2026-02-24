@@ -42,6 +42,10 @@ function M.setup(opts)
     desc = 'Cycle to next favorite model',
   })
 
+  keymap('n', '<leader>oas', '<cmd>OCSkillPick<cr>', {
+    desc = 'Pick a skill and open its definition file',
+  })
+
   -- =============================================================================
   -- TUI / Prompt
   -- =============================================================================

@@ -496,6 +496,43 @@ function Client:execute_command(session_id, command_name, opts, callback)
 	end)
 end
 
+---@class Skill
+---@field name string Skill name
+---@field description string Skill description
+---@field location string Absolute path to the skill file
+---@field content string Full skill content (optional)
+
+---List all available skills from the server.
+---@param callback fun(err: string|nil, skills: Skill[]|nil)
+---@return nil
+function Client:list_skills(callback)
+	self:request("GET", "/skill", function(err, response)
+		if err then
+			callback(err, nil)
+			return
+		end
+
+		if not response or response.status ~= 200 then
+			callback("list_skills failed with status: " .. (response and response.status or "unknown"), nil)
+			return
+		end
+
+		local ok, decoded = pcall(vim.json.decode, response.body)
+		if not ok then
+			callback("Failed to parse skills response: " .. tostring(decoded), nil)
+			return
+		end
+
+		if type(decoded) ~= "table" then
+			callback("Invalid skills response: expected array", nil)
+			return
+		end
+
+		---@type Skill[]
+		callback(nil, decoded)
+	end)
+end
+
 ---Dispose the directory-scoped OpenCode instance using a blocking curl call.
 ---Intentionally synchronous (vim.fn.system) because it is only called from
 ---VimLeavePre where Neovim is exiting and async callbacks will never fire.
