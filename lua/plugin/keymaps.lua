@@ -90,7 +90,7 @@ function M.setup(opts)
   })
 
   -- Interrupt the current AI run
-  vim.keymap.set('n', '<leader>osi', '<cmd>OCInterrupt<cr>', {
+  vim.keymap.set('n', '<leader>oi', '<cmd>OCInterrupt<cr>', {
     desc = 'Interrupt the current OpenCode AI run',
     noremap = true,
     silent = true,
@@ -139,7 +139,7 @@ function M.setup(opts)
   })
 
   -- Jump to last user message in session
-  vim.keymap.set('n', '<leader>osU', '<cmd>OCLastUser<cr>', {
+  vim.keymap.set('n', '<leader>osm', '<cmd>OCLastUser<cr>', {
     desc = 'Jump to last user message in session',
     noremap = true,
     silent = true,
