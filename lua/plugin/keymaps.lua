@@ -83,7 +83,7 @@ function M.setup(opts)
   })
 
   -- Cycle to next favorite model
-  vim.keymap.set('n', '<leader>oam', '<cmd>OCModelCycleFavorite<cr>', {
+  vim.keymap.set('n', '<C-m>', '<cmd>OCModelCycleFavorite<cr>', {
     desc = 'Cycle to next favorite model',
     noremap = true,
     silent = true,
