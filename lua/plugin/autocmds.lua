@@ -29,8 +29,8 @@ function M.setup(opts)
         local file_path = event.properties and event.properties.file
         if file_path and vim.o.autoread then
           vim.schedule(function()
-            local buf_exists = vim.fn.bufexists(file_path) == 1
-            if buf_exists then
+            local buf_loaded = vim.fn.bufloaded(file_path) == 1
+            if buf_loaded then
               vim.cmd("checktime " .. vim.fn.fnameescape(file_path))
             end
           end)
