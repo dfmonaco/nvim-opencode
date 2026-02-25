@@ -153,6 +153,11 @@ function M.setup(opts)
     require('plugin.commands.slash_command').pick()
   end, { desc = 'Pick and execute a slash command in the current session' })
 
+  -- Register OCQuickResponse command
+  vim.api.nvim_create_user_command('OCQuickResponse', function()
+    require('plugin.commands.quick_response').send()
+  end, { desc = 'Send a quick response to OpenCode' })
+
   -- Register OCDebugState command
   vim.api.nvim_create_user_command('OCDebugState', function()
     require('plugin.commands.debug').paste_state()

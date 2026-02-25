@@ -30,6 +30,10 @@ function M.setup(opts)
     desc = 'Pick and execute a slash command in the current session',
   })
 
+  keymap('n', '<C-y>', '<cmd>OCQuickResponse<cr>', {
+    desc = 'Send a quick response to OpenCode',
+  })
+
   -- =============================================================================
   -- Agent
   -- =============================================================================
